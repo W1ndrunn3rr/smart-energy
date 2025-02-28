@@ -27,7 +27,7 @@ __pycache__/
 *.log
 *.tmp
 *.temp
-
+*.lock
 # Ignoruj pliki generowane przez Dockera
 docker-compose.override.yml
 docker-compose.prod.yml
