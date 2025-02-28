@@ -1,0 +1,67 @@
+# Ignoruj pliki środowiskowe
+.env
+.env.local
+.env.development
+.env.production
+
+# Ignoruj katalogi zależności
+node_modules/
+*/node_modules/
+
+# Ignoruj wirtualne środowiska Pythona
+venv/
+env/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+
+# Ignoruj pliki IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignoruj logi i pliki tymczasowe
+*.log
+*.tmp
+*.temp
+
+# Ignoruj pliki generowane przez Dockera
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# Ignoruj pliki generowane przez Kubernetes
+*.kubeconfig
+
+# Ignoruj pliki generowane przez React
+/build/
+*.map
+
+# Ignoruj pliki generowane przez Pythona
+*.egg-info/
+dist/
+build/
+
+# Ignoruj pliki systemowe
+.DS_Store
+Thumbs.db
+
+# Ignoruj pliki testowe i wyniki testów
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Ignoruj pliki npm
+package-lock.json
+yarn.lock
+
+# Ignoruj pliki generowane przez SASS
+.sass-cache/
+
+# Ignoruj pliki generowane przez Jupyter Notebook
+.ipynb_checkpoints/
+
+# Ignoruj pliki generowane przez Git
+*.orig
