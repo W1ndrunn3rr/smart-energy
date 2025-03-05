@@ -1,0 +1,39 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /usr/src/app
+          ignore:
+            - node_modules/
+    restart: always
+    environment:
+      - VITE_APP_BACKEND_ADDRESS=http://localhost/api
+    networks:
+      - network
+    ports:
+      - 5173:5173
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/app
+          target: /api/app
+    restart: always
+    networks:
+      - network
+    ports:
+      - 8000:8000
+
+networks:
+  network:
