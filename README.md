@@ -3,13 +3,18 @@ SiteFlow - płynne zarządzanie obiektami, SmartEnergy
 
 
 ## 1. Jak odpalić dev server ?
+### 1.1 Zbuduj dockera
+```bash
+make build 
+```
+### 1.2 Odpal dockera
 ```bash
 make run
 ```
 
 ## 2.Jak zastopować dev server ?
 - CTRL + C -> do zastopowania 
--  ``` make stop``` -> stopuje i czyści kontenery z pamięci
+-  ``` make clean``` -> stopuje i czyści kontenery z pamięci
 
 ## 3.Jak stworzyć PR ? 
 - a) tworzymy nową gałąź :
