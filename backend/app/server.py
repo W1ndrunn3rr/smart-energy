@@ -11,10 +11,9 @@ database = db_client.DataBase(url,key)
 
 @app.get("/")
 def root():
-    database.get_user(1)
     return {"root": "root"}
 
-@app.get("/{user_id}")
+@app.get("/get_user/{user_id}")
 def get_user(user_id : int):
     return {"user" : database.get_user(user_id)}
 

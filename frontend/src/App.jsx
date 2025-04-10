@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import { getUser } from './scripts/api'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    console.log(user)
+  }, [user])
 
   return (
     <>
@@ -19,12 +25,10 @@ function App() {
       <h1>Niko + Zjeba</h1><br></br>
       <h2>Zapraszamy na reklamy</h2>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
+        <button onClick={async () => setUser(await getUser(1))}>Get user</button>
+        <h1>
+          {user ? `Email: ${user["email"]} Hasło: ${user.password}` : "Brak danych użytkownika"}
+        </h1>
       </div>
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
