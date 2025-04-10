@@ -1,5 +1,5 @@
 from supabase import create_client, Client
-from app.database.models import User
+from app.database.models import User, Facility
 class DataBase:
     def __init__(self, url: str, key:str):
         self.db : Client = create_client(url,key)
@@ -13,3 +13,13 @@ class DataBase:
            .execute()
         )
         return User(**response.data[0])
+    
+    def get_facility(self, facility_id : int) -> Facility:
+        response = (
+            self.db.table('Facilities')
+            .select("*")
+            .eq('facility_id', facility_id)
+            .limit(1)
+            .execute()
+        )
+        return Facility(**response.data[0])
