@@ -12,7 +12,7 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://backend:8000', // Changed to HTTP if your backend doesn't have proper SSL
+        target: 'http://backend:8080', // Changed to HTTP if your backend doesn't have proper SSL
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         secure: false,

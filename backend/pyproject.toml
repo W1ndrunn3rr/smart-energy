@@ -4,12 +4,16 @@ version = "0.1.0"
 description = "A FastAPI application for handling web requests."
 authors = ["Your Name <your.email@example.com>"]
 
+
 [tool.poetry.dependencies]
 python = "^3.9"
 uvicorn = "^0.34.0"
 fastapi = "^0.115.10"
-supabase = "^2.15.0"
 pydantic = "^2.11.3"
+sqlalchemy = "^2.0.40"
+cloud-sql-python-connector = "^1.18.1"
+pg8000 = "^1.31.2"
+dotenv = "^0.9.9"
 
 [build-system]
 requires = ["poetry-core"]

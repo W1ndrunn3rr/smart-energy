@@ -32,12 +32,15 @@ services:
     restart: always
     env_file: ".env"
     environment:
-      - SUPABASE_URL=${SUPABASE_URL} 
-      - SUPABASE_KEY=${SUPABASE_KEY}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - INSTANCE_CONNECTION_NAME=${INSTANCE_CONNECTION_NAME}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
     networks:
       - network
     ports:
-      - 8000:8000
+      - 8080:8080
 
 networks:
   network:

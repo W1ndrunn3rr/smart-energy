@@ -65,3 +65,6 @@ yarn.lock
 
 # Ignoruj pliki generowane przez Git
 *.orig
+
+# Ignoruj jsona
+*.json
