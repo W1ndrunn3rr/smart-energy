@@ -11,4 +11,5 @@ COPY ./app /api/app
 RUN pip install poetry
 RUN poetry install
 
+
 CMD ["poetry", "run", "start"]
