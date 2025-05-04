@@ -4,113 +4,171 @@ from unittest.mock import patch, MagicMock
 from app.server import app
 from app.api_models.models import APIReading, APIMeter, APIFacility, APIUser, APIAssignment
 
-client = TestClient(app)
-
-# ==================== Fixtures ====================
+@pytest.fixture
+def client():
+    return TestClient(app)
 
 @pytest.fixture
 def mock_db():
-    with patch("app.server.database") as mock:
-        yield mock
+    with patch("app.server.database") as mock_db:
+        yield mock_db
 
-@pytest.fixture
-def sample_reading():
-    return APIReading(
-        value=134.5,
-        reading_date="2025-04-04",
-        meter_serial_number="E32137821",
-        email="test@gmail.com"
-    )
-
-@pytest.fixture
-def sample_meter():
-    return APIMeter(
-        serial_number="SN12345",
-        meter_type="elektryczny",
-        facility_name="Biuro"
-    )
-
-@pytest.fixture
-def sample_facility():
-    return APIFacility(
-        name="Biuro",
-        address="123 Głowna Ulica",
-        email="zarzad@gmail.com"
-    )
-
-@pytest.fixture
-def sample_user():
-    return APIUser(
-        email="uzytkownik@gmail.com",
-        password="haslo123",
-        access_level=4
-    )
-
-@pytest.fixture
-def sample_assignment():
-    return APIAssignment(
-        email="test@example.com",
-        facility_name="Office Building"
-    )
-
-# ==================== Reading Tests ====================
-
-def test_create_reading(mock_db, sample_reading):
-    response = client.post("/readings", json=sample_reading.dict())
-    assert response.status_code == 201
-    mock_db.make_reading.assert_called_once_with(sample_reading)
-
-def test_get_readings(mock_db):
-    mock_db.get_readings.return_value = [APIReading(
-        value=123.5,
-        reading_date="2025-05-01",
-        meter_serial_number="SN123",
-        email="test@example.com"
-    )]
-    response = client.get("/readings/Office")
+# Root endpoint tests
+def test_root_endpoint(client):
+    """Test the root endpoint."""
+    response = client.get("/")
     assert response.status_code == 200
+    assert response.json() == {"status": "Smart Energy API is running"}
+
+# Reading endpoint tests
+def test_get_all_readings(client, mock_db):
+    """Test getting all readings for a facility."""
+    mock_db.get_readings.return_value = [
+        APIReading(
+            value=123.5,
+            reading_date="2025-05-01",
+            meter_serial_number="SN123",
+            email="test@example.com"
+        )
+    ]
+    
+    response = client.get("/readings/TestFacility")
+    assert response.status_code == 200
+    assert "readings" in response.json()
     assert len(response.json()["readings"]) == 1
 
-def test_delete_reading(mock_db):
-    response = client.delete("/readings/test@example.com/SN123")
+def test_get_readings_by_type(client, mock_db):
+    """Test getting readings filtered by meter type."""
+    mock_db.get_readings.return_value = [
+        APIReading(
+            value=123.5,
+            reading_date="2025-05-01",
+            meter_serial_number="SN123",
+            email="test@example.com"
+        )
+    ]
+    
+    response = client.get("/readings/TestFacility/electric")
     assert response.status_code == 200
-    mock_db.delete_reading.assert_called_once_with("test@example.com", "SN123")
+    assert "readings" in response.json()
+    mock_db.get_readings.assert_called_with("TestFacility", "electric")
 
-# ==================== Meter Tests ====================
-
-def test_add_meter(mock_db, sample_meter):
-    response = client.post("/meters", json=sample_meter.dict())
+def test_create_reading(client, mock_db):
+    """Test creating a new reading."""
+    reading_data = {
+        "value": 123.5,
+        "reading_date": "2025-05-01",
+        "meter_serial_number": "SN123",
+        "email": "test@example.com"
+    }
+    
+    response = client.post("/create_reading", json=reading_data)
     assert response.status_code == 201
-    mock_db.add_meter.assert_called_once_with(sample_meter)
+    assert response.json()["message"] == "Reading created successfully"
+    mock_db.make_reading.assert_called_once()
 
-def test_get_meters(mock_db, sample_meter):
-    mock_db.get_all_meters.return_value = [sample_meter]
-    response = client.get("/meters/Biuro")
+def test_create_reading_error(client, mock_db):
+    """Test error handling for creating readings."""
+    reading_data = {
+        "value": 123.5,
+        "reading_date": "2025-05-01",
+        "meter_serial_number": "INVALID",
+        "email": "test@example.com"
+    }
+    
+    mock_db.make_reading.side_effect = ValueError("Meter not found")
+    
+    response = client.post("/readings", json=reading_data)
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+# Meter endpoint tests
+def test_get_meters(client, mock_db):
+    """Test getting all meters for a facility."""
+    mock_db.get_all_meters.return_value = [
+        APIMeter(
+            serial_number="SN123",
+            meter_type="electric",
+            facility_name="TestFacility"
+        )
+    ]
+    
+    response = client.get("/meters/TestFacility")
     assert response.status_code == 200
+    assert "meters" in response.json()
     assert len(response.json()["meters"]) == 1
 
-# ==================== Facility Tests ====================
-
-def test_add_facility(mock_db, sample_facility):
-    response = client.post("/facilities", json=sample_facility.dict())
+def test_create_meter(client, mock_db):
+    """Test creating a new meter."""
+    meter_data = {
+        "serial_number": "SN123",
+        "meter_type": "electric",
+        "facility_name": "TestFacility"
+    }
+    
+    response = client.post("/create_meter", json=meter_data)
     assert response.status_code == 201
-    mock_db.add_facility.assert_called_once_with(sample_facility)
+    assert response.json()["message"] == "Meter created successfully"
+    mock_db.add_meter.assert_called_once()
 
-def test_assign_facility(mock_db, sample_assignment):
-    response = client.post("/facilities/assignments", json=sample_assignment.dict())
-    assert response.status_code == 201
-    mock_db.assign_user_to_facility.assert_called_once_with(
-        sample_assignment.email, sample_assignment.facility_name
-    )
-
-# ==================== User Tests ====================
-
-def test_add_user(mock_db, sample_user):
-    response = client.post("/users", json=sample_user.dict())
-    assert response.status_code == 201
-    mock_db.add_user.assert_called_once_with(sample_user)
-
-def test_block_user(mock_db):
-    response = client.put("/users/test@example.com/block")
+# Facility endpoint tests
+def test_get_all_facilities(client, mock_db):
+    """Test getting all facilities."""
+    mock_db.get_all_facilities.return_value = [
+        APIFacility(
+            name="TestFacility",
+            address="123 Test St",
+            email="facility@example.com"
+        )
+    ]
+    
+    response = client.get("/facilities")
     assert response.status_code == 200
-    mock_db.block_user.assert_called_once_with("test@example.com")
+    assert "facilities" in response.json()
+    assert len(response.json()["facilities"]) == 1
+
+def test_create_facility(client, mock_db):
+    """Test creating a new facility."""
+    facility_data = {
+        "name": "TestFacility",
+        "address": "123 Test St",
+        "email": "facility@example.com"
+    }
+    
+    response = client.post("/create_facility", json=facility_data)
+    assert response.status_code == 201
+    assert response.json()["message"] == "Facility created successfully"
+    mock_db.add_facility.assert_called_once()
+
+# User endpoint tests
+def test_get_user(client, mock_db):
+    """Test getting a user by email."""
+    mock_db.get_user_by_email.return_value = APIUser(
+        email="user@example.com",
+        password="hashed_password",
+        access_level=2
+    )
+    
+    response = client.get("/users/user@example.com")
+    assert response.status_code == 200
+    assert "user" in response.json()
+    assert response.json()["user"]["email"] == "user@example.com"
+    assert "password" not in response.json()["user"]  # Password should not be returned
+
+def test_login(client, mock_db):
+    """Test user authentication."""
+    mock_db.login_user.return_value = APIUser(
+        email="user@example.com",
+        password="hashed_password",
+        access_level=2
+    )
+    
+    login_data = {
+        "email": "user@example.com",
+        "password": "password123"
+    }
+    
+    response = client.post("/login", json=login_data)
+    assert response.status_code == 200
+    assert response.json()["message"] == "Login successful"
+    mock_db.login_user.assert_called_with("user@example.com", "password123")

@@ -588,7 +588,28 @@ class DataBase:
         query = "UPDATE users SET access_level = 0 WHERE email = :email"
         self._execute_query(query, {"email": email})
 
+    def login_user(self, email: str, password: str) -> Optional[APIUser]:
+        """Login a user by email and password.
+        
+        Args:
+            email: Email of the user
+            password: Password of the user
+        Returns:
+            APIUser object if login is successful, None otherwise
+        """
+        query = "SELECT email, password, access_level FROM users WHERE email = :email AND password = :password"
+        result = self._fetch_query_results(query, {"email": email, "password": password})
+        
+        if result:
+            return APIUser(
+                email=result[0][0],
+                password=result[0][1],
+                access_level=result[0][2]
+            )
+        return None
+    
 
 class DatabaseError(Exception):
     """Exception raised for database operation errors."""
     pass
+

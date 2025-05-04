@@ -38,7 +38,7 @@ def get_readings_by_type(facility_name: str, meter_type: str) -> Dict[str, Any]:
         return {"readings": readings}
     return {"message": "No readings found"}
 
-@app.post("/readings", tags=["Readings"], status_code=status.HTTP_201_CREATED)
+@app.post("/create_reading", tags=["Readings"], status_code=status.HTTP_201_CREATED)
 def create_reading(reading: APIReading) -> Dict[str, Any]:
     """Create a new meter reading."""
     try:
@@ -50,7 +50,7 @@ def create_reading(reading: APIReading) -> Dict[str, Any]:
             detail=str(e)
         )
 
-@app.delete("/readings/{user_email}/{meter_serial_number}", tags=["Readings"], status_code=status.HTTP_200_OK)
+@app.delete("/delete_reading/{user_email}/{meter_serial_number}", tags=["Readings"], status_code=status.HTTP_200_OK)
 def delete_reading(user_email: str, meter_serial_number: str) -> Dict[str, str]:
     """Delete a reading by user email and meter serial number."""
     try:
@@ -62,7 +62,7 @@ def delete_reading(user_email: str, meter_serial_number: str) -> Dict[str, str]:
             detail=str(e)
         )
 
-@app.put("/readings", tags=["Readings"], status_code=status.HTTP_200_OK)
+@app.put("/update_reading", tags=["Readings"], status_code=status.HTTP_200_OK)
 def update_reading(reading: APIReading) -> Dict[str, str]:
     """Update a reading's information."""
     try:
@@ -104,7 +104,7 @@ def get_meters_by_type(facility_name: str, meter_type: str) -> Dict[str, Any]:
             detail=str(e)
         )
 
-@app.post("/meters", tags=["Meters"], status_code=status.HTTP_201_CREATED)
+@app.post("/create_meter", tags=["Meters"], status_code=status.HTTP_201_CREATED)
 def create_meter(meter: APIMeter) -> Dict[str, Any]:
     """Add a new meter."""
     try:
@@ -116,7 +116,7 @@ def create_meter(meter: APIMeter) -> Dict[str, Any]:
             detail=str(e)
         )
 
-@app.delete("/meters/{serial_number}", tags=["Meters"], status_code=status.HTTP_200_OK)
+@app.delete("/delete_meter/{serial_number}", tags=["Meters"], status_code=status.HTTP_200_OK)
 def delete_meter(serial_number: str) -> Dict[str, str]:
     """Delete a meter by serial number."""
     try:
@@ -128,7 +128,7 @@ def delete_meter(serial_number: str) -> Dict[str, str]:
             detail=str(e)
         )
 
-@app.put("/meters", tags=["Meters"], status_code=status.HTTP_200_OK)
+@app.put("/update_meter", tags=["Meters"], status_code=status.HTTP_200_OK)
 def update_meter(meter: APIMeter) -> Dict[str, str]:
     """Update a meter's information."""
     try:
@@ -142,7 +142,7 @@ def update_meter(meter: APIMeter) -> Dict[str, str]:
 
 # ==================== Facilities Endpoints ====================
 
-@app.get("/facilities/{name}", tags=["Facilities"])
+@app.get("/facility/{name}", tags=["Facilities"])
 def get_facility(name: str) -> Dict[str, Any]:
     """Get a facility by name."""
     try:
@@ -176,7 +176,7 @@ def get_user_facilities(email: str) -> Dict[str, Any]:
             detail=str(e)
         )
 
-@app.post("/facilities", tags=["Facilities"], status_code=status.HTTP_201_CREATED)
+@app.post("/create_facility", tags=["Facilities"], status_code=status.HTTP_201_CREATED)
 def create_facility(facility: APIFacility) -> Dict[str, Any]:
     """Create a new facility."""
     try:
@@ -212,7 +212,7 @@ def delete_facility(facility_name: str) -> Dict[str, str]:
             detail=str(e)
         )
 
-@app.delete("/facilities/assignments", tags=["Facilities"], status_code=status.HTTP_200_OK)
+@app.delete("/facilities/unassignments", tags=["Facilities"], status_code=status.HTTP_200_OK)
 def unassign_facility(assignment: APIAssignment) -> Dict[str, str]:
     """Unassign a facility from a user."""
     try:
@@ -224,7 +224,7 @@ def unassign_facility(assignment: APIAssignment) -> Dict[str, str]:
             detail=str(e)
         )
 
-@app.put("/facilities", tags=["Facilities"], status_code=status.HTTP_200_OK)
+@app.put("/update_facility", tags=["Facilities"], status_code=status.HTTP_200_OK)
 def update_facility(facility: APIFacility) -> Dict[str, str]:
     """Update a facility's information."""
     try:
@@ -243,7 +243,10 @@ def get_user(email: str) -> Dict[str, Any]:
     """Get a user by email."""
     try:
         user = database.get_user_by_email(email)
-        return {"user": user}
+        return {"user": {
+            "email": user.email,
+            "access_level": user.access_level,
+        }}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -255,10 +258,16 @@ def get_all_users() -> Dict[str, Any]:
     """Get all users."""
     users = database.get_all_users()
     if users:
-        return {"users": users}
+        return {"users": [
+            {
+                "email": user.email,
+                "access_level": user.access_level,
+            }
+                    for user in users
+        ]}
     return {"message": "No users found"}
 
-@app.post("/users", tags=["Users"], status_code=status.HTTP_201_CREATED)
+@app.post("/create_user", tags=["Users"], status_code=status.HTTP_201_CREATED)
 def create_user(user: APIUser) -> Dict[str, Any]:
     """Create a new user."""
     try:
@@ -282,7 +291,7 @@ def delete_user(email: str) -> Dict[str, str]:
             detail=str(e)
         )
 
-@app.put("/users", tags=["Users"], status_code=status.HTTP_200_OK)
+@app.put("/update_user", tags=["Users"], status_code=status.HTTP_200_OK)
 def update_user(user: APIUser) -> Dict[str, str]:
     """Update a user's information."""
     try:
@@ -303,6 +312,21 @@ def block_user(email: str) -> Dict[str, str]:
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+# ==================== Authentication Endpoints ====================
+@app.post("/login", tags=["Authentication"], status_code=status.HTTP_200_OK)
+def login(user_data: APIUserLogin) -> Dict[str, Any]:
+    """Authenticate a user."""
+    try:
+        user = database.login_user(user_data.email, user_data.password)
+        if not user:
+            return {"message": "Invalid credentials", "user": None}
+        return {"message": "Login successful", "user": user}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
         )
 

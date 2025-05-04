@@ -24,3 +24,7 @@ class APIUser(BaseModel):
     email: str
     password: str
     access_level: int
+
+class APIUserLogin(BaseModel):
+    email: str
+    password: str
