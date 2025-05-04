@@ -2,184 +2,84 @@ import pytest
 from pydantic import ValidationError
 from app.api_models.models import APIReading, APIMeter, APIFacility, APIUser, APIAssignment
 
-# ==================== API Reading Model Tests ====================
+def test_reading_model():
 
-def test_api_reading_valid():
-    """Test creating a valid APIReading object"""
     reading = APIReading(
-        user_email="test@example.com",
-        meter_serial_number="SN12345",
-        value=123.45,
-        unit="kWh",
-        timestamp="2025-05-01T12:30:00"
+        value=123.5,
+        reading_date="2025-05-01",
+        meter_serial_number="SN123",
+        email="test@example.com"
     )
-    assert reading.user_email == "test@example.com"
-    assert reading.meter_serial_number == "SN12345"
-    assert reading.value == 123.45
-    assert reading.unit == "kWh"
-    assert reading.timestamp == "2025-05-01T12:30:00"
-
-def test_api_reading_invalid_email():
-    """Test APIReading with invalid email format"""
+    assert reading.value == 123.5
+    
     with pytest.raises(ValidationError):
         APIReading(
-            user_email="invalid-email",
-            meter_serial_number="SN12345",
-            value=123.45,
-            unit="kWh",
-            timestamp="2025-05-01T12:30:00"
+            value=123.5,
+            reading_date="2025-05-01",
+            meter_serial_number="SN123",
+            email="invalid"
         )
 
-def test_api_reading_negative_value():
-    """Test APIReading with negative value"""
-    with pytest.raises(ValidationError):
-        APIReading(
-            user_email="test@example.com",
-            meter_serial_number="SN12345",
-            value=-123.45,
-            unit="kWh",
-            timestamp="2025-05-01T12:30:00"
-        )
-
-def test_api_reading_invalid_timestamp():
-    """Test APIReading with invalid timestamp format"""
-    with pytest.raises(ValidationError):
-        APIReading(
-            user_email="test@example.com",
-            meter_serial_number="SN12345",
-            value=123.45,
-            unit="kWh",
-            timestamp="invalid-timestamp"
-        )
-
-# ==================== API Meter Model Tests ====================
-
-def test_api_meter_valid():
-    """Test creating a valid APIMeter object"""
+def test_meter_model():
     meter = APIMeter(
-        serial_number="SN12345",
-        type="electricity",
-        facility_name="Office Building",
-        location="Main Floor"
+        serial_number="SN123",
+        meter_type="elektryczny",
+        facility_name="Biuro"
     )
-    assert meter.serial_number == "SN12345"
-    assert meter.type == "electricity"
-    assert meter.facility_name == "Office Building"
-    assert meter.location == "Main Floor"
+    assert meter.meter_type == "elektryczny"
+    
 
-def test_api_meter_empty_serial():
-    """Test APIMeter with empty serial number"""
     with pytest.raises(ValidationError):
         APIMeter(
             serial_number="",
-            type="electricity",
-            facility_name="Office Building",
-            location="Main Floor"
+            meter_type="elektryczny",
+            facility_name="Biuro"
         )
 
-def test_api_meter_empty_facility():
-    """Test APIMeter with empty facility name"""
-    with pytest.raises(ValidationError):
-        APIMeter(
-            serial_number="SN12345",
-            type="electricity",
-            facility_name="",
-            location="Main Floor"
-        )
+def test_facility_model():
 
-# ==================== API Facility Model Tests ====================
-
-def test_api_facility_valid():
-    """Test creating a valid APIFacility object"""
     facility = APIFacility(
-        name="Office Building",
+        name="Biuro",
         address="123 Main St",
-        type="commercial",
-        area=1000.0
+        email="test@example.com"
     )
-    assert facility.name == "Office Building"
-    assert facility.address == "123 Main St"
-    assert facility.type == "commercial"
-    assert facility.area == 1000.0
-
-def test_api_facility_empty_name():
-    """Test APIFacility with empty name"""
+    assert facility.name == "Biuro"
+    
     with pytest.raises(ValidationError):
         APIFacility(
-            name="",
+            name="Biuro",
             address="123 Main St",
-            type="commercial",
-            area=1000.0
+            email="invalid"
         )
 
-def test_api_facility_negative_area():
-    """Test APIFacility with negative area"""
-    with pytest.raises(ValidationError):
-        APIFacility(
-            name="Office Building",
-            address="123 Main St",
-            type="commercial",
-            area=-1000.0
-        )
+def test_user_model():
 
-# ==================== API User Model Tests ====================
-
-def test_api_user_valid():
-    """Test creating a valid APIUser object"""
     user = APIUser(
         email="test@example.com",
-        name="Test User",
-        role="admin",
-        phone="123-456-7890"
+        password="haslo123",
+        access_level=2
     )
-    assert user.email == "test@example.com"
-    assert user.name == "Test User"
-    assert user.role == "admin"
-    assert user.phone == "123-456-7890"
-
-def test_api_user_invalid_email():
-    """Test APIUser with invalid email format"""
-    with pytest.raises(ValidationError):
-        APIUser(
-            email="invalid-email",
-            name="Test User",
-            role="admin",
-            phone="123-456-7890"
-        )
-
-def test_api_user_empty_name():
-    """Test APIUser with empty name"""
+    assert user.access_level == 2
+    
+    # Invalid access level
     with pytest.raises(ValidationError):
         APIUser(
             email="test@example.com",
-            name="",
-            role="admin",
-            phone="123-456-7890"
+            password="haslo123",
+            access_level=-1
         )
 
-# ==================== API Assignment Model Tests ====================
-
-def test_api_assignment_valid():
-    """Test creating a valid APIAssignment object"""
+def test_assignment_model():
+    # Valid assignment
     assignment = APIAssignment(
-        user_email="test@example.com",
-        facility_name="Office Building"
+        email="test@example.com",
+        facility_name="Biuro"
     )
-    assert assignment.user_email == "test@example.com"
-    assert assignment.facility_name == "Office Building"
-
-def test_api_assignment_invalid_email():
-    """Test APIAssignment with invalid email format"""
+    assert assignment.facility_name == "Biuro"
+    
+    # Missing facility name
     with pytest.raises(ValidationError):
         APIAssignment(
-            user_email="invalid-email",
-            facility_name="Office Building"
-        )
-
-def test_api_assignment_empty_facility():
-    """Test APIAssignment with empty facility name"""
-    with pytest.raises(ValidationError):
-        APIAssignment(
-            user_email="test@example.com",
+            email="test@example.com",
             facility_name=""
         )

@@ -10,7 +10,7 @@ services:
           path: ./frontend
           target: /usr/src/app
           ignore:
-            - node_modules/
+            - node_modules/**
     restart: always
     environment:
       - VITE_APP_BACKEND_ADDRESS=http://localhost/api
@@ -18,7 +18,6 @@ services:
       - network
     ports:
       - 5173:5173
-
   backend:
     build:
       context: ./backend
@@ -41,6 +40,23 @@ services:
       - network
     ports:
       - 8080:8080
-
+  tests:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    container_name: backend-tests
+    env_file: ".env"
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}_test
+      - INSTANCE_CONNECTION_NAME=${INSTANCE_CONNECTION_NAME}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - PYTHONPATH=/api
+    networks:
+      - network
+    volumes:
+      - ./backend/app:/api/app
+      - ./backend/tests:/api/tests
 networks:
   network:

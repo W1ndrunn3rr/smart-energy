@@ -90,7 +90,7 @@ def get_meters(facility_name: str) -> Dict[str, Any]:
             detail=str(e)
         )
 
-@app.get("/meters/{facility_name}/{meter_type}", tags=["Meters"])
+@app.get("/meters/{facility_name}/{meter_type}", tags=["Meters"], )
 def get_meters_by_type(facility_name: str, meter_type: str) -> Dict[str, Any]:
     """Get meters of a specific type for a facility."""
     try:

@@ -15,6 +15,7 @@ cloud-sql-python-connector = "^1.18.1"
 pg8000 = "^1.31.2"
 dotenv = "^0.9.9"
 pytest = "^8.3.5"
+httpx = "^0.28.1"
 
 [build-system]
 requires = ["poetry-core"]

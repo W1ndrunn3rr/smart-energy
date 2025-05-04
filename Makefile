@@ -13,3 +13,8 @@ clean:
 	@echo "Stopping and removing all containers..."
 	@docker stop $$(docker ps -a -q)
 	@docker rm $$(docker ps -a -q) 
+
+.PHONY: test
+test:
+	@echo "Running tests..."
+	docker-compose -f docker-compose-dev.yaml run tests

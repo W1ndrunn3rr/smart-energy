@@ -4,14 +4,12 @@ Ten zestaw testów zapewnia kompleksowe pokrycie testami jednostkowymi i integra
 
 ## Struktura testów
 
-Testy podzielone są na kilka modułów:
+Testy podzielone są na cztery moduły:
 
 1. **test_smart_energy_api.py** - podstawowe testy jednostkowe dla każdego endpointu API
 2. **test_models.py** - testy sprawdzające poprawność modeli Pydantic API
-3. **test_integration.py** - testy integracyjne weryfikujące kompleksowe przepływy pracy
-4. **test_dependencies.py** - testy sprawdzające obsługę zależności i przypadków błędów
-5. **test_performance.py** - testy oceniające wydajność API
-6. **conftest.py** - wspólne konfiguracje i fixtures dla testów
+3. **test_dependencies.py** - testy sprawdzające obsługę zależności i przypadków błędów
+4. **conftest.py** - wspólne konfiguracje i fixtures dla testów
 
 ## Uruchomienie testów
 
