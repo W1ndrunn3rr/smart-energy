@@ -272,7 +272,7 @@ def create_user(user: APIUser) -> Dict[str, Any]:
     """Create a new user."""
     try:
         database.add_user(user)
-        return {"message": "User created successfully", "user": user}
+        return {"message": "User created successfully"}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -322,8 +322,8 @@ def login(user_data: APIUserLogin) -> Dict[str, Any]:
     try:
         user = database.login_user(user_data.email, user_data.password)
         if not user:
-            return {"message": "Invalid credentials", "user": None}
-        return {"message": "Login successful", "user": user}
+            return {"message": "Invalid credentials", "access_level": None}
+        return {"message": "Login successful", "access_level": user.access_level}
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
