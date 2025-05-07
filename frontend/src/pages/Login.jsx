@@ -1,13 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-//export const API_URL = 'http://localhost:8080/docs';
-
-const MOCK_USER = {
-    email: 'test',
-    password: '123'
-};
-
+import AuthFunc from '../scripts/auth';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -26,39 +19,16 @@ const Login = () => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
-        if (formData.email === MOCK_USER.email && formData.password === MOCK_USER.password) {
+        if (await AuthFunc(formData)) {
             localStorage.setItem('isAuthenticated', 'true');
             navigate('/Home');
         } else {
             setError('Nieprawidłowy login lub hasło');
         }
-        // try {
-        //     const response = await fetch(`${API_URL}/login`, {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json',
-        //         },
-        //         body: JSON.stringify(formData)
-        //     });
-
-        //     const data = await response.json();
-        //     console.log(response.json)
-
-        //     if (response.ok) {
-        //         // Zapisz token w localStorage
-        //         localStorage.setItem('token', data.token);
-        //         localStorage.setItem('isAuthenticated', 'true');
-        //         navigate('/Home');
-        //     } else {
-        //         setError(data.message || 'Błąd logowania');
-        //     }
-        // } catch (e) {
-        //     setError('Błąd połączenia z serwerem');
-        // }
     };
 
     return (
@@ -66,11 +36,11 @@ const Login = () => {
             <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
                 <h2 className="text-2xl font-bold text-center mb-6 text-[#003264]">Logowanie</h2>
 
-                {/* {error && (
+                {error && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
                         {error}
                     </div>
-                )} */}
+                )}
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">

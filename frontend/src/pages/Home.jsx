@@ -27,19 +27,19 @@ function Home() {
                                 to="/a"
                                 className="text-white hover:text-[#e3e3e3] px-3 py-2 text-sm font-medium transition duration-200"
                             >
-                                A
+                                Woda
                             </Link>
                             <Link
                                 to="/b"
                                 className="text-white hover:text-[#e3e3e3] px-3 py-2 text-sm font-medium transition duration-200"
                             >
-                                B
+                                Prąd
                             </Link>
                             <Link
                                 to="/c"
                                 className="text-white hover:text-[#e3e3e3] px-3 py-2 text-sm font-medium transition duration-200"
                             >
-                                C
+                                Gaz
                             </Link>
                             <button
                                 onClick={handleLogout}
