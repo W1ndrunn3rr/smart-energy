@@ -1,8 +1,20 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+//export const API_URL = 'http://localhost:8080/docs';
+
+const MOCK_USER = {
+    email: 'test',
+    password: '123'
+};
+
 
 const Login = () => {
+    const navigate = useNavigate();
+    const [error, setError] = useState('');
+
     const [formData, setFormData] = useState({
-        username: '',
+        email: '',
         password: ''
     });
 
@@ -16,8 +28,37 @@ const Login = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        console.log('Dane logowania:', formData);
-        // Tutaj można dodać logikę logowania
+        setError('');
+
+        if (formData.email === MOCK_USER.email && formData.password === MOCK_USER.password) {
+            localStorage.setItem('isAuthenticated', 'true');
+            navigate('/Home');
+        } else {
+            setError('Nieprawidłowy login lub hasło');
+        }
+        // try {
+        //     const response = await fetch(`${API_URL}/login`, {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json',
+        //         },
+        //         body: JSON.stringify(formData)
+        //     });
+
+        //     const data = await response.json();
+        //     console.log(response.json)
+
+        //     if (response.ok) {
+        //         // Zapisz token w localStorage
+        //         localStorage.setItem('token', data.token);
+        //         localStorage.setItem('isAuthenticated', 'true');
+        //         navigate('/Home');
+        //     } else {
+        //         setError(data.message || 'Błąd logowania');
+        //     }
+        // } catch (e) {
+        //     setError('Błąd połączenia z serwerem');
+        // }
     };
 
     return (
@@ -25,16 +66,22 @@ const Login = () => {
             <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
                 <h2 className="text-2xl font-bold text-center mb-6 text-[#003264]">Logowanie</h2>
 
+                {/* {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                        {error}
+                    </div>
+                )} */}
+
                 <form onSubmit={handleSubmit}>
                     <div className="mb-4">
-                        <label htmlFor="username" className="block text-sm font-medium text-[#444444] mb-2">
+                        <label htmlFor="email" className="block text-sm font-medium text-[#444444] mb-2">
                             Email
                         </label>
                         <input
                             type="text"
-                            id="username"
-                            name="username"
-                            value={formData.username}
+                            id="email"
+                            name="email"
+                            value={formData.email}
                             onChange={handleChange}
                             className="w-full px-3 py-2 border border-[#c4c4c4] rounded-md focus:outline-none focus:ring-2 focus:ring-[#0057AD]"
                             required
