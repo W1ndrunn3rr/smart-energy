@@ -41,10 +41,10 @@ def test_complete_workflow(client, mock_db):
         "password": "password123"
     })
     assert login_response.status_code == 200
-    user_data = login_response.json()["user"]
+    access_level = login_response.json()["access_level"]
     
     # 2. Get user's facilities
-    facilities_response = client.get(f"/facilities/user/{user_data['email']}")
+    facilities_response = client.get(f"/facilities/user/technician@example.com")
     assert facilities_response.status_code == 200
     facilities = facilities_response.json()["facilities"]
     facility_name = facilities[0]["name"]
@@ -60,7 +60,7 @@ def test_complete_workflow(client, mock_db):
         "value": 123.5,
         "reading_date": "2025-05-01",
         "meter_serial_number": meter_serial,
-        "email": user_data["email"]
+        "email": "technician@example.com"
     }
     
     reading_response = client.post("/create_reading", json=reading_data)

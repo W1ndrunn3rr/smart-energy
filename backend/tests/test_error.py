@@ -38,7 +38,7 @@ def test_bad_request_errors(client, mock_db):
         "password": "wrongpassword"
     })
     assert response.json()["message"] == "Invalid credentials"
-    assert response.json()["user"] is None
+    assert response.json()["access_level"] is None
 
 def test_validation_errors(client):
     """Test API validation errors for invalid input data."""
