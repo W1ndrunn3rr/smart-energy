@@ -1,13 +1,11 @@
 import { Navigate } from 'react-router-dom';
+import { getSecureCookie } from '../utils/Cookies';
 
 const ProtectedRoute = ({ children }) => {
-    //const token = localStorage.getItem('token');
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-
+    const isAuthenticated = getSecureCookie('isAuthenticated') === 'true';
     if (!isAuthenticated) {
         return <Navigate to="/" replace />;
     }
-
     return children;
 };
 
