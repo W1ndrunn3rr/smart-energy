@@ -2,8 +2,8 @@ import Login from './pages/Login';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home'
 import ProtectedRoute from './components/ProtectedRoute';
-function App() {
 
+function App() {
   return (
     <BrowserRouter>
       <Routes>
@@ -18,12 +18,8 @@ function App() {
         />
       </Routes>
     </BrowserRouter>
-
-
-    // <Login />
-
-
   );
 }
+
 
 export default App;
