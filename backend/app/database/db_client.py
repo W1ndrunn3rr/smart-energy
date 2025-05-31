@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import List, Optional, Dict, Any, Union
+from passlib.hash import bcrypt
 
 from dotenv import load_dotenv
 from google.cloud.sql.connector import Connector
@@ -539,7 +540,7 @@ class DataBase:
         params = {
             "user_id": user_id,
             "email": user_data.email,
-            "password": user_data.password,
+            "password": bcrypt.hash(user_data.password),
             "access_level": user_data.access_level
         }
         self._execute_query(query, params)
@@ -573,7 +574,7 @@ class DataBase:
         
         params = {
             "email": user_data.email,
-            "password": user_data.password,
+            "password": bcrypt.hash(user_data.password),
             "access_level": user_data.access_level
         }
         
@@ -589,25 +590,41 @@ class DataBase:
         self._execute_query(query, {"email": email})
 
     def login_user(self, email: str, password: str) -> Optional[APIUser]:
-        """Login a user by email and password.
-        
-        Args:
+        """Login a user by verifying email and hashed password.
+    
+        Args: 
             email: Email of the user
             password: Password of the user
         Returns:
-            APIUser object if login is successful, None otherwise
+            APIUser object if the email exists and the provided password matches the bcrypt hash.
+            None if the user is not found or the password is incorrect.
+        Notes:
+            The password stored in the database is hashed using bcrypt.
         """
-        query = "SELECT email, password, access_level FROM users WHERE email = :email AND password = :password"
-        result = self._fetch_query_results(query, {"email": email, "password": password})
-        
+        query = "SELECT email, password, access_level FROM users WHERE email = :email"
+        result = self._fetch_query_results(query, {"email": email})
+
         if result:
-            return APIUser(
-                email=result[0][0],
-                password=result[0][1],
-                access_level=result[0][2]
-            )
+            stored_email, stored_hashed_password, access_level = result[0]
+
+            if bcrypt.verify(password, stored_hashed_password):
+                return APIUser(
+                    email=stored_email,
+                    password=None,
+                    access_level=access_level
+                )
+
         return None
     
+    # One-time migration of legacy users with plain-text passwords.
+    # def migrate_passwords(self):
+    #     users = self._fetch_query_results("SELECT user_id, password FROM users")
+    #     for user_id, plain_password in users:
+    #         hashed_password = bcrypt.hash(plain_password)
+    #         self._execute_query(
+    #             "UPDATE users SET password = :password WHERE user_id = :user_id",
+    #             {"password" : hashed_password, "user_id" : user_id}
+    #         )
 
 class DatabaseError(Exception):
     """Exception raised for database operation errors."""
