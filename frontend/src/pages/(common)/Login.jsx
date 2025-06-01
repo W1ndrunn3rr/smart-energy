@@ -1,8 +1,7 @@
-// filepath: /home/niko/smart-energy/frontend/src/pages/Login.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Removed unused Link
-import AuthFunc from '../scripts/auth';
-import { setSecureCookie, sha256 } from '../utils/Cookies';
+import { useNavigate } from 'react-router-dom';
+import AuthFunc from '../../scripts/auth';
+import { sessionManager } from '../../scripts/session_manager';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -30,13 +29,15 @@ const Login = () => {
         try {
             const result = await AuthFunc(formData);
             if (result && result.success) {
-                setSecureCookie('isAuthenticated', 'true');
-                // Hash access_level before storing it
-                const hashedAccessLevel = await sha256(String(result.access_level));
-                setSecureCookie('access_level', hashedAccessLevel);
+                // Ustaw sesję w session managerze (automatycznie ustawi też cookie)
+                sessionManager.setSession({
+                    access_level: result.access_level,
+                    email: result.email,
+                    // dodaj inne dane użytkownika jeśli potrzebne
+                });
+
                 navigate('/Home');
             } else {
-                // Use message from AuthFunc result if available
                 setError(result?.message || 'Nieprawidłowy login lub hasło');
             }
         } catch (err) {

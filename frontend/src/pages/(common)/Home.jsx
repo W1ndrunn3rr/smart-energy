@@ -1,13 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
-import zdj from '../assets/ars.jpg'; // Assuming ars.jpg is in src/assets
-import { removeSecureCookie } from '../utils/Cookies';
+import zdj from '../../assets/ars.jpg';
+import { sessionManager } from '../../scripts/session_manager';
 
 function Home() {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        removeSecureCookie('isAuthenticated');
-        removeSecureCookie('access_level');
+        sessionManager.clearSession();
         navigate('/');
     };
 
@@ -54,7 +53,23 @@ function Home() {
                 </div>
             </nav>
             <div className="p-4">
-                <p className="text-ars-darkgrey">Home Page Content</p> {/* Used Tailwind color */}
+                {(() => {
+                    const accessLevel = sessionManager.getAccessLevel();
+                    const userData = sessionManager.getUserData();
+
+                    switch (accessLevel) {
+                        case 1:
+                            return <h1 className="text-2xl font-bold text-center text-ars-deepblue">Witaj, Administratorze {userData?.email}!</h1>;
+                        case 2:
+                            return <h1 className="text-2xl font-bold text-center text-ars-deepblue">Witaj, Kierowniku {userData?.email}!</h1>;
+                        case 3:
+                            return <h1 className="text-2xl font-bold text-center text-ars-deepblue">Witaj, Techniku {userData?.email}!</h1>;
+                        case 4:
+                            return <h1 className="text-2xl font-bold text-center text-ars-deepblue">Witaj, Gościu {userData?.email}!</h1>;
+                        default:
+                            return <h1 className="text-2xl font-bold text-center text-ars-deepblue">Witaj!</h1>;
+                    }
+                })()}
                 {/* You can display user info or role here by getting it from cookies if needed */}
             </div>
         </div>

@@ -610,13 +610,13 @@ class DataBase:
             if bcrypt.verify(password, stored_hashed_password):
                 return APIUser(
                     email=stored_email,
-                    password=None,
+                    password="", 
                     access_level=access_level
                 )
 
         return None
     
-    # One-time migration of legacy users with plain-text passwords.
+    # # One-time migration of legacy users with plain-text passwords.
     # def migrate_passwords(self):
     #     users = self._fetch_query_results("SELECT user_id, password FROM users")
     #     for user_id, plain_password in users:

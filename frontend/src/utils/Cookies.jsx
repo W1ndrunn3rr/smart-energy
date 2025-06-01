@@ -43,3 +43,6 @@ export const removeSecureCookie = (name) => {
     // Upewnij się, że usuwasz ciasteczko z tymi samymi atrybutami (szczególnie path)
     Cookies.remove(name, { path: '/' });
 };
+
+// Alias dla kompatybilności wstecznej
+export const deleteCookie = removeSecureCookie;
