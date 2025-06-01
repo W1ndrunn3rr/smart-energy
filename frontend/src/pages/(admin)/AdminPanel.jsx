@@ -1,12 +1,12 @@
 import { sessionManager } from '../../scripts/session_manager';
 
 const AdminPanel = () => {
-    const userData = sessionManager.getUserData();
+    const userEmail = sessionManager.getUserEmail();
 
     return (
         <div className="p-6">
             <h1 className="text-3xl font-bold mb-6 text-ars-deepblue">Panel Administratora</h1>
-            <p className="mb-4">Witaj {userData?.email}! To jest strona tylko dla administratorów (poziom 1).</p>
+            <p className="mb-4">Witaj {userEmail}! To jest strona tylko dla administratorów (poziom 1).</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="bg-white p-4 rounded-lg shadow">

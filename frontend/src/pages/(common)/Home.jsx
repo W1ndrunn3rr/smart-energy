@@ -55,7 +55,7 @@ function Home() {
             <div className="p-4">
                 {(() => {
                     const accessLevel = sessionManager.getAccessLevel();
-                    const userData = sessionManager.getUserData();
+                    const userData = sessionManager.getUserEmail();
 
                     switch (accessLevel) {
                         case 1:

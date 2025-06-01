@@ -4,7 +4,7 @@ import { sessionManager } from '../scripts/session_manager';
 const Navigation = () => {
     const navigate = useNavigate();
     const accessLevel = sessionManager.getAccessLevel();
-    const userData = sessionManager.getUserData();
+    const userData = sessionManager.getUserEmail();
 
     const handleLogout = () => {
         sessionManager.clearSession();

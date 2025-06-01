@@ -34,6 +34,7 @@ async function AuthFunc(formData) {
         if (data && data.access_level !== null && data.access_level !== undefined) {
             return {
                 success: true,
+                email: formData.email,
                 access_level: data.access_level,
                 message: data.message || 'Zalogowano pomyślnie'
             };

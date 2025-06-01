@@ -2,12 +2,12 @@ import { sessionManager } from '../../scripts/session_manager';
 
 
 const UserPanel = () => {
-    const userData = sessionManager.getUserData();
+    const userEmail = sessionManager.getUserEmail();
 
     return (
         <div className="p-6">
             <h1 className="text-3xl font-bold mb-6 text-ars-deepblue">Panel Gościa</h1>
-            <p className="mb-4">Witaj {userData?.email}! To jest strona dla gości (poziom 4).</p>
+            <p className="mb-4">Witaj {userEmail}! To jest strona dla gości (poziom 4).</p>
 
             <div className="grid grid-cols-1 gap-6">
                 <div className="bg-white p-4 rounded-lg shadow">

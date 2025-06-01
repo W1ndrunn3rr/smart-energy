@@ -9,7 +9,7 @@ class SessionManager {
         const sessionData = {
             isAuthenticated: true,
             accessLevel: userData.access_level,
-            user: userData,
+            email: userData.email,
             timestamp: Date.now()
         };
 
@@ -46,8 +46,8 @@ class SessionManager {
         return this.session.accessLevel;
     }
 
-    getUserData() {
-        return this.session.user;
+    getUserEmail() {
+        return this.session.email;
     }
 
     isAuthenticated() {
