@@ -81,7 +81,13 @@ class DataBase:
         Raises:
             ValueError: If entity not found
         """
-        query = f"SELECT {entity_type[:-1]}_id FROM {entity_type} WHERE {field} = :{field}"
+        id_columns = {
+            'users': 'user_id',
+            'meters': 'meter_id',
+            'facilities': 'facility_id'
+        }
+        query = f"SELECT {id_columns[entity_type]} FROM {entity_type} WHERE {field} = :{field}"
+
         params = {field: value}
         
         with self.pool.connect() as conn:
