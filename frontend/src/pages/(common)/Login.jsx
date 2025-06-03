@@ -32,11 +32,27 @@ const Login = () => {
                 // Ustaw sesję w session managerze (automatycznie ustawi też cookie)
                 sessionManager.setSession({
                     access_level: result.access_level,
-                    email: result.email,
+                    email: result.email, // Zakładamy, że API zwraca email w result.email
                     // dodaj inne dane użytkownika jeśli potrzebne
                 });
 
-                navigate('/Home');
+                // Przekieruj na podstawie poziomu dostępu
+                switch (result.access_level) {
+                    case 1: // Admin
+                        navigate('/admin/home');
+                        break;
+                    case 2: // Manager
+                        navigate('/manager/home');
+                        break;
+                    case 3: // Technik
+                        navigate('/technician/home'); // lub /technician/home, jeśli taką masz strukturę
+                        break;
+                    case 4: // User (Gość)
+                        navigate('/user/home');    // lub /user/home, jeśli taką masz strukturę
+                        break;
+                    default:
+                        navigate('/home'); // Domyślne przekierowanie, jeśli poziom dostępu nie pasuje
+                }
             } else {
                 setError(result?.message || 'Nieprawidłowy login lub hasło');
             }
