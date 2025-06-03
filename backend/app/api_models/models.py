@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class APIReading(BaseModel):
     value: float
@@ -10,6 +11,8 @@ class APIMeter(BaseModel):
     serial_number: str
     meter_type: str
     facility_name: str
+    ppe: Optional[str]
+    multiply_factor: float
 
 class APIFacility(BaseModel):
     name: str

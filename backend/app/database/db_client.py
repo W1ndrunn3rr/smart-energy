@@ -241,7 +241,7 @@ class DataBase:
         """
         facility_id = self._get_facility_id(facility_name)
         query = """
-        SELECT serial_number, meter_type
+        SELECT serial_number, meter_type, ppe, multiply_factor
         FROM meters
         WHERE facility_id = :facility_id
         """
@@ -251,7 +251,9 @@ class DataBase:
         return [APIMeter(
             facility_name=facility_name,
             serial_number=row[0],
-            meter_type=row[1]
+            meter_type=row[1],
+            ppe=row[2],
+            multiply_factor=row[3]
         ) for row in result]
         
     def get_meters_by_type(self, facility_name: str, meter_type: str) -> List[APIMeter]:
@@ -266,7 +268,7 @@ class DataBase:
         """
         facility_id = self._get_facility_id(facility_name)
         query = """
-        SELECT serial_number, meter_type
+        SELECT serial_number, meter_type, ppe, multiply_factor
         FROM meters
         WHERE facility_id = :facility_id AND meter_type = :meter_type
         """
@@ -277,30 +279,33 @@ class DataBase:
         return [APIMeter(
             facility_name=facility_name,
             serial_number=row[0],
-            meter_type=row[1]
+            meter_type=row[1],
+            ppe = row[2],
+            multiply_factor = row[3]
         ) for row in result]
 
     def add_meter(self, meter_data: APIMeter) -> None:
-        """Add a new meter.
-        
-        Args:
-            meter_data: APIMeter object with meter data
-        """
+        """Add a new meter."""
+        if meter_data.meter_type != "Energia elektryczna":
+            meter_data.ppe = None
+            
         meter_id = self._generate_unique_id()
         facility_id = self._get_facility_id(meter_data.facility_name)
-        
+
         query = """
-        INSERT INTO meters (meter_id, serial_number, meter_type, facility_id)
-        VALUES (:meter_id, :serial_number, :meter_type, :facility_id)
+        INSERT INTO meters (meter_id, serial_number, meter_type, facility_id, ppe, multiply_factor)
+        VALUES (:meter_id, :serial_number, :meter_type, :facility_id, :ppe, :multiply_factor)
         """
-        
+
         params = {
             "meter_id": meter_id,
             "serial_number": meter_data.serial_number,
             "meter_type": meter_data.meter_type,
-            "facility_id": facility_id
+            "facility_id": facility_id,
+            "ppe": meter_data.ppe,
+            "multiply_factor": meter_data.multiply_factor
         }
-        
+
         self._execute_query(query, params)
 
     def delete_meter(self, serial_number: str) -> None:
@@ -322,14 +327,18 @@ class DataBase:
         """
         query = """
         UPDATE meters
-        SET meter_type = :meter_type
+        SET meter_type = :meter_type,
+            ppe = :ppe,
+            multiply_factor = :multiply_factor
         WHERE serial_number = :serial_number
         """
-        
         params = {
             "serial_number": meter_data.serial_number,
-            "meter_type": meter_data.meter_type
+            "meter_type": meter_data.meter_type,
+            "ppe": meter_data.ppe,
+            "multiply_factor": meter_data.multiply_factor
         }
+
         
         self._execute_query(query, params)
 
