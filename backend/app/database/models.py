@@ -5,8 +5,8 @@ from typing import Optional
 class User(BaseModel):
     user_id : int
     email : str
-    password : str
-    access_level :int
+    password : Optional[int]
+    access_level : Optional[int]
     
 class Facility(BaseModel):
     facility_id : int
@@ -24,6 +24,8 @@ class Meters(BaseModel):
     serial_number : str
     meter_type : str
     facility_id : int
+    ppe: Optional[str]
+    multiply_factor: float
 
 class Readings(BaseModel):
     reading_id : int
