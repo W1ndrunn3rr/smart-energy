@@ -292,6 +292,12 @@ class DataBase:
 
     def add_meter(self, meter_data: APIMeter) -> None:
         """Add a new meter."""
+        if self._fetch_query_results(
+            "SELECT 1 FROM meters WHERE serial_number = :serial_number",
+            {"serial_number": meter_data.serial_number}
+        ):
+            raise ValueError(f"Meter with serial number {meter_data.serial_number} already exists.")
+        
         if meter_data.meter_type != "Energia elektryczna":
             meter_data.ppe = None
 
@@ -408,6 +414,11 @@ class DataBase:
         Args:
             facility_data: APIFacility object with facility data
         """
+        if self._fetch_query_results(
+            "SELECT 1 FROM facilities WHERE name = :name",
+            {"name": facility_data.name}
+        ):
+            raise ValueError(f"Facility with name {facility_data.name} already exists.")
         facility_id = self._generate_unique_id()
 
         query = """
@@ -538,6 +549,12 @@ class DataBase:
         Args:
             user_data: APIUser object with user data
         """
+        if self._fetch_query_results(
+            "SELECT 1 FROM users WHERE email = :email",
+            {"email": user_data.email}
+        ):
+            raise ValueError(f"User with email {user_data.email} already exists.")
+        
         user_id = self._generate_unique_id()
 
         query = """
