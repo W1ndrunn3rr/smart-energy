@@ -81,7 +81,13 @@ class DataBase:
         Raises:
             ValueError: If entity not found
         """
-        query = f"SELECT {entity_type[:-1]}_id FROM {entity_type} WHERE {field} = :{field}"
+        id_columns = {
+            'users': 'user_id',
+            'meters': 'meter_id',
+            'facilities': 'facility_id'
+        }
+        query = f"SELECT {id_columns[entity_type]} FROM {entity_type} WHERE {field} = :{field}"
+
         params = {field: value}
         
         with self.pool.connect() as conn:
@@ -145,7 +151,7 @@ class DataBase:
             value=row[0],
             reading_date=row[1].isoformat() if row[1] else None,  
             meter_serial_number=row[2],
-            user_email=row[3], 
+            email=row[3], 
         ) for row in result]
     
     def make_reading(self, reading_data: APIReading) -> None:
@@ -156,7 +162,7 @@ class DataBase:
         """
         reading_id = self._generate_unique_id()
         meter_id = self._get_meter_id(reading_data.meter_serial_number)
-        user_id = self._get_user_id(reading_data.user_email)
+        user_id = self._get_user_id(reading_data.email)
         
         query = """
         INSERT INTO readings (reading_id, value, reading_date, meter_id, user_id)
@@ -566,18 +572,22 @@ class DataBase:
         Args:
             user_data: APIUser object with updated user data
         """
-        query = """
-        UPDATE users
-        SET password = :password, access_level = :access_level
-        WHERE email = :email
-        """
         
-        params = {
-            "email": user_data.email,
-            "password": bcrypt.hash(user_data.password),
-            "access_level": user_data.access_level
-        }
+        update_fields = []
+        params = {"email": user_data.email}
         
+        if user_data.password:
+            update_fields.append("password = :password")
+            params["password"] = bcrypt.hash(user_data.password)
+            
+        if user_data.access_level is not None:
+            update_fields.append("access_level = :access_level")
+            params["access_level"] = user_data.access_level
+        
+        if not update_fields:
+            return  
+            
+        query = f"UPDATE users SET {', '.join(update_fields)} WHERE email = :email"
         self._execute_query(query, params)
 
     def block_user(self, email: str) -> None:
