@@ -9,12 +9,12 @@ from app.api_models.models import *
 app = FastAPI(
     title="Smart Energy API",
     description="API for managing energy readings and meters",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +29,7 @@ database = db_client.DataBase()
 def root() -> Dict[str, str]:
     """Root endpoint to check API availability."""
     return {"status": "Smart Energy API is running"}
+
 
 # ==================== Reading Endpoints ====================
 
@@ -58,23 +59,21 @@ def create_reading(reading: APIReading) -> Dict[str, Any]:
         database.make_reading(reading)
         return {"message": "Reading created successfully", "reading": reading}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/delete_reading/{user_email}/{meter_serial_number}", tags=["Readings"], status_code=status.HTTP_200_OK)
-def delete_reading(user_email: str, meter_serial_number: str) -> Dict[str, str]:
+@app.delete(
+    "/delete_reading/{reading_id}",
+    tags=["Readings"],
+    status_code=status.HTTP_200_OK,
+)
+def delete_reading(reading_id: int) -> Dict[str, str]:
     """Delete a reading by user email and meter serial number."""
     try:
-        database.delete_reading(user_email, meter_serial_number)
+        database.delete_reading(reading_id)
         return {"message": "Reading deleted successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.put("/update_reading", tags=["Readings"], status_code=status.HTTP_200_OK)
@@ -84,10 +83,8 @@ def update_reading(reading: APIReading) -> Dict[str, str]:
         database.update_reading(reading)
         return {"message": "Reading updated successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 # ==================== Meter Endpoints ====================
 
@@ -101,13 +98,13 @@ def get_meters(facility_name: str) -> Dict[str, Any]:
             return {"meters": meters}
         return {"message": "No meters found"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.get("/meters/{facility_name}/{meter_type}", tags=["Meters"], )
+@app.get(
+    "/meters/{facility_name}/{meter_type}",
+    tags=["Meters"],
+)
 def get_meters_by_type(facility_name: str, meter_type: str) -> Dict[str, Any]:
     """Get meters of a specific type for a facility."""
     try:
@@ -116,10 +113,7 @@ def get_meters_by_type(facility_name: str, meter_type: str) -> Dict[str, Any]:
             return {"meters": meters}
         return {"message": "No meters found"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.post("/create_meter", tags=["Meters"], status_code=status.HTTP_201_CREATED)
@@ -129,23 +123,19 @@ def create_meter(meter: APIMeter) -> Dict[str, Any]:
         database.add_meter(meter)
         return {"message": "Meter created successfully", "meter": meter}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/delete_meter/{serial_number}", tags=["Meters"], status_code=status.HTTP_200_OK)
+@app.delete(
+    "/delete_meter/{serial_number}", tags=["Meters"], status_code=status.HTTP_200_OK
+)
 def delete_meter(serial_number: str) -> Dict[str, str]:
     """Delete a meter by serial number."""
     try:
         database.delete_meter(serial_number)
         return {"message": "Meter deleted successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.put("/update_meter", tags=["Meters"], status_code=status.HTTP_200_OK)
@@ -155,10 +145,8 @@ def update_meter(meter: APIMeter) -> Dict[str, str]:
         database.update_meter(meter)
         return {"message": "Meter updated successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 # ==================== Facilities Endpoints ====================
 
@@ -170,10 +158,7 @@ def get_facility(name: str) -> Dict[str, Any]:
         facility = database.get_facility(name)
         return {"facility": facility}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.get("/facilities", tags=["Facilities"])
@@ -194,10 +179,7 @@ def get_user_facilities(email: str) -> Dict[str, Any]:
             return {"facilities": facilities}
         return {"message": "No facilities found"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.post("/create_facility", tags=["Facilities"], status_code=status.HTTP_201_CREATED)
@@ -207,51 +189,47 @@ def create_facility(facility: APIFacility) -> Dict[str, Any]:
         database.add_facility(facility)
         return {"message": "Facility created successfully", "facility": facility}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@app.post("/facilities/assignments", tags=["Facilities"], status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/facilities/assignments", tags=["Facilities"], status_code=status.HTTP_201_CREATED
+)
 def assign_facility(assignment: APIAssignment) -> Dict[str, Any]:
     """Assign a facility to a user."""
     try:
         database.assign_user_to_facility(
-            assignment.user_email, assignment.facility_name)
+            assignment.user_email, assignment.facility_name
+        )
         return {"message": "Facility assigned successfully", "assignment": assignment}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/facilities/{facility_name}", tags=["Facilities"], status_code=status.HTTP_200_OK)
+@app.delete(
+    "/facilities/{facility_name}", tags=["Facilities"], status_code=status.HTTP_200_OK
+)
 def delete_facility(facility_name: str) -> Dict[str, str]:
     """Delete a facility by name."""
     try:
         database.delete_facility(facility_name)
         return {"message": "Facility deleted successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.delete("/facilities/unassignments", tags=["Facilities"], status_code=status.HTTP_200_OK)
+@app.delete(
+    "/facilities/unassignments", tags=["Facilities"], status_code=status.HTTP_200_OK
+)
 def unassign_facility(assignment: APIAssignment) -> Dict[str, str]:
     """Unassign a facility from a user."""
     try:
         database.remove_user_from_facility(
-            assignment.user_email, assignment.facility_name)
+            assignment.user_email, assignment.facility_name
+        )
         return {"message": "Facility unassigned successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.put("/update_facility", tags=["Facilities"], status_code=status.HTTP_200_OK)
@@ -261,10 +239,8 @@ def update_facility(facility: APIFacility) -> Dict[str, str]:
         database.update_facility(facility)
         return {"message": "Facility updated successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 # ==================== User Endpoints ====================
 
@@ -274,15 +250,14 @@ def get_user(email: str) -> Dict[str, Any]:
     """Get a user by email."""
     try:
         user = database.get_user_by_email(email)
-        return {"user": {
-            "email": user.email,
-            "access_level": user.access_level,
-        }}
+        return {
+            "user": {
+                "email": user.email,
+                "access_level": user.access_level,
+            }
+        }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.get("/users", tags=["Users"])
@@ -290,13 +265,15 @@ def get_all_users() -> Dict[str, Any]:
     """Get all users."""
     users = database.get_all_users()
     if users:
-        return {"users": [
-            {
-                "email": user.email,
-                "access_level": user.access_level,
-            }
-            for user in users
-        ]}
+        return {
+            "users": [
+                {
+                    "email": user.email,
+                    "access_level": user.access_level,
+                }
+                for user in users
+            ]
+        }
     return {"message": "No users found"}
 
 
@@ -307,10 +284,7 @@ def create_user(user: APIUser) -> Dict[str, Any]:
         database.add_user(user)
         return {"message": "User created successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @app.delete("/users/{email}", tags=["Users"], status_code=status.HTTP_200_OK)
@@ -320,23 +294,27 @@ def delete_user(email: str) -> Dict[str, str]:
         database.delete_user(email)
         return {"message": "User deleted successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@app.put("/update_user", tags=["Users"], status_code=status.HTTP_200_OK)
-def update_user(user: APIUser) -> Dict[str, str]:
-    """Update a user's information."""
+@app.put("/update_user_role", tags=["Users"], status_code=status.HTTP_200_OK)
+def update_user_role(user_email: str, user_role: int) -> Dict[str, str]:
+    """Update a user's role"""
     try:
-        database.update_user(user)
-        return {"message": "User updated successfully"}
+        database.update_user(user_email=user_email, user_role=user_role)
+        return {"message": "User role updated successfuly"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@app.put("/update_user_password", tags=["Users"], status_code=status.HTTP_200_OK)
+def update_user_password(user_email: str, hashed_password: str) -> Dict[str, str]:
+    """Update a user's email"""
+    try:
+        database.update_user(user_email=user_email, hashed_password=hashed_password)
+        return {"message": "User password updated successfuly"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @app.put("/users/{email}/block", tags=["Users"], status_code=status.HTTP_200_OK)
@@ -346,10 +324,8 @@ def block_user(email: str) -> Dict[str, str]:
         database.block_user(email)
         return {"message": "User blocked successfully"}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 # ==================== Authentication Endpoints ====================
 
@@ -363,10 +339,7 @@ def login(user_data: APIUserLogin) -> Dict[str, Any]:
             return {"message": "Invalid credentials", "access_level": None}
         return {"message": "Login successful", "access_level": user.access_level}
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
 
 # ==================== Server Startup ====================
