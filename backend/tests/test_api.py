@@ -24,13 +24,14 @@ def test_root_endpoint(client):
 def test_get_all_readings(client, mock_db):
     """Test getting all readings for a facility."""
     mock_db.get_readings.return_value = [
-        APIReading(
-            value=123.5,
-            reading_date="2025-05-01",
-            meter_serial_number="SN123",
-            email="test@example.com"
-        )
-    ]
+    APIReading(
+        reading_id=1,
+        value=123.5,
+        reading_date="2025-05-01",
+        meter_serial_number="SN123",
+        email="test@example.com"
+    )
+]
     
     response = client.get("/readings/TestFacility")
     assert response.status_code == 200
@@ -40,13 +41,14 @@ def test_get_all_readings(client, mock_db):
 def test_get_readings_by_type(client, mock_db):
     """Test getting readings filtered by meter type."""
     mock_db.get_readings.return_value = [
-        APIReading(
-            value=123.5,
-            reading_date="2025-05-01",
-            meter_serial_number="SN123",
-            email="test@example.com"
-        )
-    ]
+    APIReading(
+        reading_id=1,
+        value=123.5,
+        reading_date="2025-05-01",
+        meter_serial_number="SN123",
+        email="test@example.com"
+    )
+]
     
     response = client.get("/readings/TestFacility/electric")
     assert response.status_code == 200
@@ -56,6 +58,7 @@ def test_get_readings_by_type(client, mock_db):
 def test_create_reading(client, mock_db):
     """Test creating a new reading."""
     reading_data = {
+        "reading_id": 1,
         "value": 123.5,
         "reading_date": "2025-05-01",
         "meter_serial_number": "SN123",
@@ -86,12 +89,14 @@ def test_create_reading_error(client, mock_db):
 def test_get_meters(client, mock_db):
     """Test getting all meters for a facility."""
     mock_db.get_all_meters.return_value = [
-        APIMeter(
-            serial_number="SN123",
-            meter_type="electric",
-            facility_name="TestFacility"
-        )
-    ]
+    APIMeter(
+        serial_number="SN123",
+        meter_type="electric",
+        facility_name="TestFacility",
+        ppe=None,
+        multiply_factor=1.0
+    )
+]
     
     response = client.get("/meters/TestFacility")
     assert response.status_code == 200
@@ -103,7 +108,9 @@ def test_create_meter(client, mock_db):
     meter_data = {
         "serial_number": "SN123",
         "meter_type": "electric",
-        "facility_name": "TestFacility"
+        "facility_name": "TestFacility",
+        "ppe": None,
+        "multiply_factor": 1.0
     }
     
     response = client.post("/create_meter", json=meter_data)
