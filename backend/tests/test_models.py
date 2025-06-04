@@ -4,8 +4,9 @@ from app.api_models.models import APIReading, APIMeter, APIFacility, APIUser, AP
 
 def test_api_reading_model():
     """Test APIReading model validation."""
-    # Valid reading
+   
     reading = APIReading(
+        reading_id=1,
         value=123.5,
         reading_date="2025-05-01",
         meter_serial_number="SN123",
@@ -25,7 +26,6 @@ def test_api_reading_model():
             user_email="test@example.com"
         )
     
-    # Missing fields
     with pytest.raises(ValidationError):
         APIReading(
             value=123.5,
@@ -34,17 +34,19 @@ def test_api_reading_model():
 
 def test_api_meter_model():
     """Test APIMeter model validation."""
-    # Valid meter
+
     meter = APIMeter(
         serial_number="SN123",
         meter_type="elektryczny",
-        facility_name="Biuro"
+        facility_name="Biuro",
+        ppe=None,
+        multiply_factor=1.0
     )
     assert meter.serial_number == "SN123"
     assert meter.meter_type == "elektryczny"
     assert meter.facility_name == "Biuro"
     
-    # Missing fields
+
     with pytest.raises(ValidationError):
         APIMeter(
             serial_number="SN123"

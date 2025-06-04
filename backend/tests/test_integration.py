@@ -25,12 +25,14 @@ def mock_db():
             )
         ]
         mock_db.get_all_meters.return_value = [
-            APIMeter(
-                serial_number="E12345",
-                meter_type="electric",
-                facility_name="Office Building"
-            )
-        ]
+        APIMeter(
+            serial_number="E12345",
+            meter_type="electric",
+            facility_name="Office Building",
+            ppe=None,
+            multiply_factor=1.0
+        )
+    ]
         yield mock_db
 
 def test_complete_workflow(client, mock_db):
@@ -57,6 +59,7 @@ def test_complete_workflow(client, mock_db):
     
     # 4. Submit a reading
     reading_data = {
+        "reading_id": 1,
         "value": 123.5,
         "reading_date": "2025-05-01",
         "meter_serial_number": meter_serial,
