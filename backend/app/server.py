@@ -308,10 +308,9 @@ def update_user_role(user_email: str, user_role: int) -> Dict[str, str]:
 
 
 @app.put("/update_user_password", tags=["Users"], status_code=status.HTTP_200_OK)
-def update_user_password(user_email: str, hashed_password: str) -> Dict[str, str]:
-    """Update a user's email"""
+def update_user_password(user_email: str, new_password: str) -> Dict[str, str]:
     try:
-        database.update_user(user_email=user_email, hashed_password=hashed_password)
+        database.update_user(user_email=user_email, hashed_password=new_password)
         return {"message": "User password updated successfuly"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -335,6 +334,7 @@ def login(user_data: APIUserLogin) -> Dict[str, Any]:
     """Authenticate a user."""
     try:
         user = database.login_user(user_data.email, user_data.password)
+        print (f"User: {user_data.password}")
         if not user:
             return {"message": "Invalid credentials", "access_level": None}
         return {"message": "Login successful", "access_level": user.access_level}
