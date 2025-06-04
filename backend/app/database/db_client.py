@@ -591,20 +591,11 @@ class DataBase:
         hashed_password: Optional[str] = None,
         user_role: Optional[int] = None,
     ) -> None:
-        """Update user information.
+        """Update user information."""
 
-        Args:
-            user_data: APIUser object with updated user data
-        """
-
-        if hashed_password is None:
-            query = """
-            UPDATE users
-            SET access_level = :access_level
-            WHERE email = :email
-            """
-            params = {"email": user_email, "access_level": user_role}
-        else:
+        if hashed_password is not None:
+            # Haszowanie nowego hasła (plain text)
+            hashed = bcrypt.hash(hashed_password)
             query = """
             UPDATE users
             SET password = :password
@@ -612,19 +603,18 @@ class DataBase:
             """
             params = {
                 "email": user_email,
-                "password": hashed_password,
-                "access_level": user_role,
+                "password": hashed,
             }
+        else:
+            # Zmiana poziomu dostępu
+            query = """
+            UPDATE users
+            SET access_level = :access_level
+            WHERE email = :email
+            """
+            params = {"email": user_email, "access_level": user_role}
+
         self._execute_query(query, params)
-
-    def block_user(self, email: str) -> None:
-        """Block a user by email.
-
-        Args:
-            email: Email of the user to block
-        """
-        query = "UPDATE users SET access_level = 0 WHERE email = :email"
-        self._execute_query(query, {"email": email})
 
     def login_user(self, email: str, password: str) -> Optional[APIUser]:
         """Login a user by verifying email and hashed password.

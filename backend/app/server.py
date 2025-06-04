@@ -308,10 +308,9 @@ def update_user_role(user_email: str, user_role: int) -> Dict[str, str]:
 
 
 @app.put("/update_user_password", tags=["Users"], status_code=status.HTTP_200_OK)
-def update_user_password(user_email: str, hashed_password: str) -> Dict[str, str]:
-    """Update a user's email"""
+def update_user_password(user_email: str, new_password: str) -> Dict[str, str]:
     try:
-        database.update_user(user_email=user_email, hashed_password=hashed_password)
+        database.update_user(user_email=user_email, hashed_password=new_password)
         return {"message": "User password updated successfuly"}
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
