@@ -44,11 +44,12 @@ const AdminMetersPage = () => {
     const [successMessage, setSuccessMessage] = useState('');
 
     const [openAddMeterDialog, setOpenAddMeterDialog] = useState(false);
-    const [newMeter, setNewMeter] = useState({ serial_number: '', meter_type: COMMON_METER_TYPES[0] });
+    const [newMeter, setNewMeter] = useState({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1 }); // Dla dodawania mnożna może pozostać liczbą, jeśli walidacja jest odpowiednia
 
     const [openEditMeterDialog, setOpenEditMeterDialog] = useState(false);
     const [meterToEdit, setMeterToEdit] = useState(null);
-    const [editedMeter, setEditedMeter] = useState({ serial_number: '', meter_type: '' });
+    // Zaktualizowano stan editedMeter o ppe i multiply_factor
+    const [editedMeter, setEditedMeter] = useState({ serial_number: '', meter_type: '', ppe: '', multiply_factor: 1 });
 
     const [openDeleteMeterDialog, setOpenDeleteMeterDialog] = useState(false);
     const [meterToDelete, setMeterToDelete] = useState(null);
@@ -61,9 +62,19 @@ const AdminMetersPage = () => {
     const [openAddReadingDialog, setOpenAddReadingDialog] = useState(false);
     const [currentMeterForDialog, setCurrentMeterForDialog] = useState(null);
     const [newReadingValue, setNewReadingValue] = useState('');
+    const [newReadingIdInput, setNewReadingIdInput] = useState(''); // <-- DODANO: Stan dla ID nowego odczytu
     const [openConfirmSaveDialog, setOpenConfirmSaveDialog] = useState(false);
     const [pendingSaveAction, setPendingSaveAction] = useState(null);
     const [expandedReadings, setExpandedReadings] = useState({});
+
+    // Stany dla edycji odczytów
+    const [openEditReadingDialog, setOpenEditReadingDialog] = useState(false);
+    const [readingToEdit, setReadingToEdit] = useState(null);
+    const [editedReadingValue, setEditedReadingValue] = useState('');
+
+    // Stany dla usuwania odczytów
+    const [openDeleteReadingDialog, setOpenDeleteReadingDialog] = useState(false);
+    const [readingToDelete, setReadingToDelete] = useState(null);
 
 
     useEffect(() => {
@@ -179,7 +190,8 @@ const AdminMetersPage = () => {
             setError("Najpierw wybierz obiekt.");
             return;
         }
-        setNewMeter({ serial_number: '', meter_type: COMMON_METER_TYPES[0] });
+        // Zresetuj stan newMeter z domyślnymi wartościami dla PPE i mnożnej
+        setNewMeter({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1 });
         setError('');
         setSuccessMessage('');
         setOpenAddMeterDialog(true);
@@ -187,13 +199,21 @@ const AdminMetersPage = () => {
     const handleCloseAddMeterDialog = () => setOpenAddMeterDialog(false);
     const handleNewMeterChange = (e) => {
         const { name, value } = e.target;
-        setNewMeter(prev => ({ ...prev, [name]: value }));
+        setNewMeter(prev => ({
+            ...prev,
+            [name]: name === 'multiply_factor' ? (value === '' ? '' : parseFloat(value)) : value
+        }));
     };
     const handleAddMeter = async () => {
-        if (!selectedFacility || !newMeter.serial_number.trim() || !newMeter.meter_type) {
-            setError("Numer seryjny i typ licznika są wymagane.");
+        if (!selectedFacility || !newMeter.serial_number.trim() || !newMeter.meter_type || !newMeter.ppe.trim()) {
+            setError("Numer seryjny, typ licznika oraz numer PPE są wymagane.");
             return;
         }
+        if (newMeter.multiply_factor === '' || isNaN(parseFloat(newMeter.multiply_factor)) || parseFloat(newMeter.multiply_factor) <= 0) {
+            setError("Mnożna musi być liczbą dodatnią.");
+            return;
+        }
+
         setIsLoadingMeters(true);
         setError('');
         setSuccessMessage('');
@@ -201,7 +221,9 @@ const AdminMetersPage = () => {
             const payload = {
                 serial_number: newMeter.serial_number.trim(),
                 meter_type: newMeter.meter_type,
-                facility_name: selectedFacility.name
+                facility_name: selectedFacility.name,
+                ppe: newMeter.ppe.trim(),
+                multiply_factor: parseFloat(newMeter.multiply_factor)
             };
             const response = await fetch(`${API_URL}/create_meter`, {
                 method: 'POST',
@@ -212,7 +234,7 @@ const AdminMetersPage = () => {
                 const errorData = await response.json().catch(() => ({ detail: 'Nie udało się dodać licznika.' }));
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-            setSuccessMessage(`Licznik "${newMeter.serial_number}" (${newMeter.meter_type}) został pomyślnie dodany do obiektu "${selectedFacility.name}".`);
+            setSuccessMessage(`Licznik "${newMeter.serial_number}" (PPE: ${newMeter.ppe}, Mnożna: ${newMeter.multiply_factor}) został pomyślnie dodany do obiektu "${selectedFacility.name}".`);
             handleCloseAddMeterDialog();
             if (selectedFacility) fetchMetersForFacility(selectedFacility.name); // Odśwież listę liczników
         } catch (err) {
@@ -225,29 +247,66 @@ const AdminMetersPage = () => {
     // Edit Meter Handlers
     const handleOpenEditMeterDialog = (meter) => {
         setMeterToEdit(meter);
-        setEditedMeter({ serial_number: meter.serial_number, meter_type: meter.meter_type });
+        setEditedMeter({
+            serial_number: meter.serial_number,
+            meter_type: meter.meter_type,
+            ppe: meter.ppe || '',
+            // Ustaw multiply_factor jako string
+            multiply_factor: meter.multiply_factor !== undefined ? String(meter.multiply_factor) : '1'
+        });
         setError('');
         setSuccessMessage('');
         setOpenEditMeterDialog(true);
     };
     const handleCloseEditMeterDialog = () => setOpenEditMeterDialog(false);
+
     const handleEditedMeterChange = (e) => {
         const { name, value } = e.target;
-        setEditedMeter(prev => ({ ...prev, [name]: value }));
+        setEditedMeter(prev => ({
+            ...prev,
+            [name]: value // Bezpośrednio zapisz wartość jako string
+        }));
     };
+
     const handleUpdateMeter = async () => {
-        if (!meterToEdit || !selectedFacility || !editedMeter.meter_type) {
-            setError("Typ licznika jest wymagany do aktualizacji.");
+        if (!meterToEdit || !selectedFacility || !editedMeter.meter_type || !editedMeter.ppe.trim()) {
+            setError("Typ licznika oraz numer PPE są wymagane do aktualizacji.");
             return;
         }
+
+        // Walidacja dla multiply_factor (teraz string w editedMeter.multiply_factor)
+        const multiplyFactorString = editedMeter.multiply_factor.trim();
+        if (multiplyFactorString === '') {
+            setError("Mnożna jest wymagana."); // Można też ustawić, że nie może być pusta
+            return;
+        }
+        const multiplyFactorValue = parseFloat(multiplyFactorString);
+        if (isNaN(multiplyFactorValue) || multiplyFactorValue <= 0) {
+            setError("Mnożna musi być liczbą dodatnią (większą od 0).");
+            return;
+        }
+
         setIsLoadingMeters(true);
         setError('');
         setSuccessMessage('');
+
+        // Upewnij się, że meterToEdit i selectedFacility istnieją
+        if (!meterToEdit || !selectedFacility) {
+            setError("Nie można zaktualizować licznika: brak danych licznika lub obiektu.");
+            setIsLoadingMeters(false);
+            return;
+        }
+
         const payload = {
+            serial_number: meterToEdit.serial_number, // Dodano numer seryjny do identyfikacji
             meter_type: editedMeter.meter_type,
+            facility_name: selectedFacility.name, // Dodano nazwę obiektu, jeśli API tego wymaga
+            ppe: editedMeter.ppe.trim(),
+            multiply_factor: multiplyFactorValue
         };
         try {
-            const response = await fetch(`${API_URL}/update_meter/${encodeURIComponent(meterToEdit.serial_number)}`, {
+            // Poprawiona ścieżka URL - bez numeru seryjnego w ścieżce
+            const response = await fetch(`${API_URL}/update_meter`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -256,7 +315,7 @@ const AdminMetersPage = () => {
                 const errorData = await response.json().catch(() => ({ detail: 'Nie udało się zaktualizować licznika.' }));
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-            setSuccessMessage(`Licznik "${meterToEdit.serial_number}" został pomyślnie zaktualizowany (nowy typ: ${editedMeter.meter_type}).`);
+            setSuccessMessage(`Licznik "${meterToEdit.serial_number}" został pomyślnie zaktualizowany.`);
             handleCloseEditMeterDialog();
             if (selectedFacility) fetchMetersForFacility(selectedFacility.name);
         } catch (err) {
@@ -305,21 +364,29 @@ const AdminMetersPage = () => {
         }
         setCurrentMeterForDialog(meter);
         setNewReadingValue('');
+        setNewReadingIdInput(''); // <-- DODANO: Resetuj pole ID odczytu
         setError(''); // Czyść błędy specyficzne dla tego dialogu
         setSuccessMessage('');
         setOpenAddReadingDialog(true);
     };
 
     const confirmAndCreateReading = () => {
-        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility) {
-            setError("Wartość odczytu jest wymagana."); // Błąd powinien pojawić się w dialogu
+        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility || !newReadingIdInput.trim()) { // <-- ZMODYFIKOWANO: Walidacja dla newReadingIdInput
+            setError("Numer seryjny odczytu (ID) oraz wartość odczytu są wymagane.");
             return;
         }
+        const parsedReadingId = parseInt(newReadingIdInput, 10);
+        if (isNaN(parsedReadingId)) {
+            setError("Numer seryjny odczytu (ID) musi być liczbą całkowitą.");
+            return;
+        }
+
         setPendingSaveAction(() => async () => {
             setIsSubmittingReading(true);
             setError('');
             setSuccessMessage('');
             const readingData = {
+                reading_id: parsedReadingId, // <-- DODANO: Użyj sparsowanego ID odczytu
                 meter_serial_number: currentMeterForDialog.serial_number,
                 email: currentUserEmail,
                 value: parseFloat(newReadingValue),
@@ -354,6 +421,132 @@ const AdminMetersPage = () => {
             pendingSaveAction();
         }
     };
+
+    // Dodaj funkcje do edycji odczytów
+    const handleOpenEditReadingDialog = (reading, meterType) => {
+        setReadingToEdit({ ...reading, meter_type: meterType });
+        setEditedReadingValue(reading.value.toString());
+        setError('');
+        setOpenEditReadingDialog(true);
+    };
+
+    const confirmAndUpdateReading = () => {
+        if (!readingToEdit || !editedReadingValue.trim() || !selectedFacility) {
+            setError("Wartość odczytu jest wymagana.");
+            return;
+        }
+        // Upewnij się, że readingToEdit zawiera reading_id
+        if (readingToEdit.reading_id === undefined || readingToEdit.reading_id === null) {
+            setError("Brak ID odczytu. Nie można zaktualizować.");
+            console.error("confirmAndUpdateReading: reading_id is missing in readingToEdit", readingToEdit);
+            return;
+        }
+
+        setPendingSaveAction(() => async () => {
+            setIsSubmittingReading(true);
+            setError('');
+            setSuccessMessage('');
+            const updatePayload = {
+                reading_id: readingToEdit.reading_id,
+                value: parseFloat(editedReadingValue),
+                reading_date: new Date(readingToEdit.reading_date).toISOString().split('T')[0], // Upewnij się, że format daty jest poprawny dla API
+                meter_serial_number: readingToEdit.meter_serial_number,
+                email: readingToEdit.email,
+            };
+
+            console.log('Attempting to update reading with payload:', updatePayload);
+            try {
+                const response = await fetch(`${API_URL}/update_reading`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatePayload),
+                });
+
+                console.log('Update reading response status:', response.status);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Nie udało się zaktualizować odczytu lub sparsować błędu.' }));
+                    console.error('API Error Data:', errorData);
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                // const responseData = await response.json(); // API zwraca 200 OK z "additionalProp1": "string"
+                // console.log('Update reading successful, response data:', responseData);
+                setSuccessMessage('Odczyt został pomyślnie zaktualizowany.');
+                fetchReadingsForFacility(selectedFacility.name);
+                setOpenEditReadingDialog(false);
+            } catch (err) {
+                console.error('Error in confirmAndUpdateReading:', err);
+                setError(err.message);
+            } finally {
+                setIsSubmittingReading(false);
+                setOpenConfirmSaveDialog(false);
+                setPendingSaveAction(null);
+            }
+        });
+        setOpenConfirmSaveDialog(true); // Możesz chcieć osobny dialog potwierdzający dla edycji
+    };
+
+    // Funkcje do usuwania odczytów
+    const handleOpenDeleteReadingDialog = (reading) => {
+        // Upewnij się, że obiekt 'reading' zawiera 'reading_id'
+        if (reading.reading_id === undefined || reading.reading_id === null) {
+            setError("Brak ID odczytu. Nie można usunąć.");
+            console.error("handleOpenDeleteReadingDialog: reading_id is missing in reading object", reading);
+            return;
+        }
+        setReadingToDelete(reading);
+        setError('');
+        setOpenDeleteReadingDialog(true);
+    };
+
+    const handleCloseDeleteReadingDialog = () => {
+        setOpenDeleteReadingDialog(false);
+        setReadingToDelete(null);
+    };
+
+    const confirmAndDeleteReading = async () => {
+        if (!readingToDelete || !selectedFacility) {
+            setError("Nie można usunąć odczytu. Brakujące dane.");
+            return;
+        }
+        // Upewnij się, że readingToDelete zawiera reading_id
+        if (readingToDelete.reading_id === undefined || readingToDelete.reading_id === null) {
+            setError("Brak ID odczytu. Nie można usunąć.");
+            console.error("confirmAndDeleteReading: reading_id is missing in readingToDelete", readingToDelete);
+            handleCloseDeleteReadingDialog();
+            return;
+        }
+
+        setIsSubmittingReading(true);
+        setError('');
+        setSuccessMessage('');
+
+        try {
+            console.log(`Attempting to delete reading with ID: ${readingToDelete.reading_id}`);
+
+            const response = await fetch(`${API_URL}/delete_reading/${readingToDelete.reading_id}`, {
+                method: 'DELETE',
+                headers: {
+                    // 'Content-Type': 'application/json', // Zwykle niepotrzebne dla DELETE bez body
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Nie udało się usunąć odczytu lub sparsować błędu.' }));
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+            }
+            // const responseData = await response.json(); // API zwraca 200 OK z "additionalProp1": "string"
+            // console.log('Delete reading successful, response data:', responseData);
+            setSuccessMessage(`Odczyt (ID: ${readingToDelete.reading_id}) został pomyślnie usunięty.`);
+            fetchReadingsForFacility(selectedFacility.name);
+            handleCloseDeleteReadingDialog();
+        } catch (err) {
+            console.error('Error deleting reading:', err);
+            setError(err.message);
+        } finally {
+            setIsSubmittingReading(false);
+        }
+    };
+
 
     const toggleReadingsExpansion = (meterSerialNumber) => {
         setExpandedReadings(prev => ({
@@ -439,6 +632,8 @@ const AdminMetersPage = () => {
                                                 <TableHead>
                                                     <TableRow>
                                                         <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Numer Seryjny</TableCell>
+                                                        <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Numer PPE</TableCell>
+                                                        <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Mnożna</TableCell>
                                                         <TableCell align="center" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold', minWidth: '200px' }}>Akcje</TableCell>
                                                     </TableRow>
                                                 </TableHead>
@@ -447,6 +642,8 @@ const AdminMetersPage = () => {
                                                         <React.Fragment key={meter.serial_number}>
                                                             <TableRow sx={{ '&:hover': { backgroundColor: 'var(--ars-whitegrey)' } }}>
                                                                 <TableCell>{meter.serial_number}</TableCell>
+                                                                <TableCell>{meter.ppe || '-'}</TableCell>
+                                                                <TableCell>{meter.multiply_factor !== undefined ? meter.multiply_factor : '-'}</TableCell>
                                                                 <TableCell align="center">
                                                                     <IconButton title="Edytuj licznik" size="small" onClick={() => handleOpenEditMeterDialog(meter)} sx={{ color: 'var(--ars-lightblue)' }}><EditIcon /></IconButton>
                                                                     <IconButton title="Usuń licznik" size="small" onClick={() => handleOpenDeleteMeterDialog(meter)} sx={{ color: '#c82333' }}><DeleteIcon /></IconButton>
@@ -459,7 +656,7 @@ const AdminMetersPage = () => {
                                                                 </TableCell>
                                                             </TableRow>
                                                             <TableRow>
-                                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={2}>
+                                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}> {/* Zwiększono colSpan */}
                                                                     <Collapse in={expandedReadings[meter.serial_number]} timeout="auto" unmountOnExit>
                                                                         <Box margin={1} p={2} sx={{ border: '1px solid var(--ars-grey)', borderRadius: '4px' }}>
                                                                             <Typography variant="subtitle1" gutterBottom component="div" fontWeight="bold">
@@ -473,10 +670,11 @@ const AdminMetersPage = () => {
                                                                                 <Table size="small" aria-label="odczyty">
                                                                                     <TableHead>
                                                                                         <TableRow>
-                                                                                            <TableCell sx={{fontWeight: 'bold'}}>Wartość</TableCell>
-                                                                                            <TableCell sx={{fontWeight: 'bold'}}>Jednostka</TableCell>
-                                                                                            <TableCell sx={{fontWeight: 'bold'}}>Data</TableCell>
-                                                                                            <TableCell sx={{fontWeight: 'bold'}}>Zarejestrował</TableCell>
+                                                                                            <TableCell sx={{ fontWeight: 'bold' }}>Wartość</TableCell>
+                                                                                            <TableCell sx={{ fontWeight: 'bold' }}>Jednostka</TableCell>
+                                                                                            <TableCell sx={{ fontWeight: 'bold' }}>Data</TableCell>
+                                                                                            <TableCell sx={{ fontWeight: 'bold' }}>Zarejestrował</TableCell>
+                                                                                            <TableCell align="center" sx={{ fontWeight: 'bold' }}>Akcje</TableCell>
                                                                                         </TableRow>
                                                                                     </TableHead>
                                                                                     <TableBody>
@@ -489,6 +687,10 @@ const AdminMetersPage = () => {
                                                                                                     <TableCell>{reading.unit || getUnitForMeterType(meter.meter_type)}</TableCell>
                                                                                                     <TableCell>{new Date(reading.reading_date).toLocaleDateString()}</TableCell>
                                                                                                     <TableCell>{reading.email}</TableCell>
+                                                                                                    <TableCell align="center">
+                                                                                                        <IconButton title="Edytuj odczyt" size="small" onClick={() => handleOpenEditReadingDialog(reading, meter.meter_type)} sx={{ color: 'var(--ars-lightblue)' }} disabled={isSubmittingReading}><EditIcon /></IconButton>
+                                                                                                        <IconButton title="Usuń odczyt" size="small" onClick={() => handleOpenDeleteReadingDialog(reading)} sx={{ color: 'var(--ars-red)' }} disabled={isSubmittingReading}><DeleteIcon /></IconButton>
+                                                                                                    </TableCell>
                                                                                                 </TableRow>
                                                                                             ))}
                                                                                     </TableBody>
@@ -544,7 +746,7 @@ const AdminMetersPage = () => {
                         onChange={handleNewMeterChange}
                         className="mb-3"
                     />
-                    <FormControl fullWidth margin="dense">
+                    <FormControl fullWidth margin="dense" className="mb-3">
                         <InputLabel id="add-meter-type-select-label">Typ Licznika</InputLabel>
                         <Select
                             labelId="add-meter-type-select-label"
@@ -561,6 +763,29 @@ const AdminMetersPage = () => {
                             ))}
                         </Select>
                     </FormControl>
+                    <TextField
+                        margin="dense"
+                        name="ppe"
+                        label="Numer PPE"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={newMeter.ppe}
+                        onChange={handleNewMeterChange}
+                        className="mb-3"
+                    />
+                    <TextField
+                        margin="dense"
+                        name="multiply_factor"
+                        label="Mnożna"
+                        type="number"
+                        fullWidth
+                        variant="outlined"
+                        value={newMeter.multiply_factor}
+                        onChange={handleNewMeterChange}
+                        InputProps={{ inputProps: { min: 0.01, step: "any" } }} // Umożliwia liczby dziesiętne i minimalną wartość
+                        helperText="Domyślnie 1. Musi być liczbą dodatnią."
+                    />
                 </DialogContent>
                 <DialogActions className="p-4">
                     <Button onClick={handleCloseAddMeterDialog} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
@@ -586,7 +811,7 @@ const AdminMetersPage = () => {
                             value={editedMeter.serial_number}
                             className="mb-3"
                         />
-                        <FormControl fullWidth margin="dense">
+                        <FormControl fullWidth margin="dense" className="mb-3">
                             <InputLabel id="edit-meter-type-select-label">Typ Licznika</InputLabel>
                             <Select
                                 labelId="edit-meter-type-select-label"
@@ -604,6 +829,29 @@ const AdminMetersPage = () => {
                                 ))}
                             </Select>
                         </FormControl>
+                        <TextField
+                            margin="dense"
+                            name="ppe"
+                            label="Numer PPE"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={editedMeter.ppe} // ppe jest już stringiem
+                            onChange={handleEditedMeterChange}
+                            className="mb-3"
+                        />
+                        <TextField
+                            margin="dense"
+                            name="multiply_factor"
+                            label="Mnożna"
+                            type="number" // type="number" dla odpowiedniej klawiatury/kontrolek, ale wartość w stanie jest stringiem
+                            fullWidth
+                            variant="outlined"
+                            value={editedMeter.multiply_factor} // Wartość jest stringiem
+                            onChange={handleEditedMeterChange}
+                            InputProps={{ inputProps: { min: 0.01, step: "any" } }} // min/step to wskazówki dla przeglądarki
+                            helperText="Musi być liczbą dodatnią (większą od 0)."
+                        />
                     </DialogContent>
                     <DialogActions className="p-4">
                         <Button onClick={handleCloseEditMeterDialog} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
@@ -640,8 +888,20 @@ const AdminMetersPage = () => {
                             <Typography gutterBottom>Licznik: <strong>{currentMeterForDialog.serial_number}</strong> ({currentMeterForDialog.meter_type})</Typography>
                             <Typography gutterBottom>Zapisujący: <strong>{currentUserEmail}</strong></Typography>
                             <Typography gutterBottom>Data odczytu: <strong>{new Date().toLocaleDateString()}</strong></Typography>
+                            <TextField // <-- DODANO: Pole dla Numeru Seryjnego Odczytu (ID)
+                                margin="dense"
+                                label="Numer Seryjny Odczytu (ID)"
+                                type="number" // Użyj type="text" jeśli ID może zawierać znaki niecyfrowe, lub "number" dla walidacji numerycznej
+                                fullWidth
+                                variant="outlined"
+                                value={newReadingIdInput}
+                                onChange={(e) => setNewReadingIdInput(e.target.value)}
+                                className="mb-3"
+                                error={!!error && (error.toLowerCase().includes("numer seryjny odczytu") || error.toLowerCase().includes("id odczytu"))}
+                                helperText={error && (error.toLowerCase().includes("numer seryjny odczytu") || error.toLowerCase().includes("id odczytu")) ? error : ""}
+                            />
                             <TextField
-                                autoFocus
+                                autoFocus // Przeniesiono autoFocus tutaj, jeśli to pole ma być pierwsze
                                 margin="dense"
                                 label={`Wartość odczytu (${getUnitForMeterType(currentMeterForDialog.meter_type)})`}
                                 type="number"
@@ -653,15 +913,15 @@ const AdminMetersPage = () => {
                                 InputProps={{
                                     endAdornment: <Typography variant="caption" sx={{ ml: 0.5 }}>{getUnitForMeterType(currentMeterForDialog.meter_type)}</Typography>
                                 }}
-                                error={!!error} // Pokaż błąd walidacji w polu
-                                helperText={error} // Wyświetl komunikat błędu pod polem
+                                error={!!error && error.toLowerCase().includes("wartość odczytu")}
+                                helperText={error && error.toLowerCase().includes("wartość odczytu") ? error : ""}
                             />
                         </>
                     )}
                 </DialogContent>
                 <DialogActions className="p-4">
                     <Button onClick={() => { setOpenAddReadingDialog(false); setError(''); }} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
-                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmittingReading || !newReadingValue.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}>
+                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmittingReading || !newReadingValue.trim() || !newReadingIdInput.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}> {/* <-- ZMODYFIKOWANO: Warunek disabled */}
                         {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Zapisz'}
                     </Button>
                 </DialogActions>
@@ -677,6 +937,66 @@ const AdminMetersPage = () => {
                     <Button onClick={() => { setOpenConfirmSaveDialog(false); setPendingSaveAction(null); }} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
                     <Button onClick={executePendingSave} variant="contained" sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }} disabled={isSubmittingReading}>
                         {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Potwierdź'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Edit Reading Dialog - bez zmian w strukturze, tylko logika powyżej */}
+            <Dialog open={openEditReadingDialog} onClose={() => setOpenEditReadingDialog(false)} fullWidth maxWidth="xs">
+                <DialogTitle className="text-ars-deepblue">Edytuj Odczyt</DialogTitle>
+                <DialogContent>
+                    {readingToEdit && (
+                        <>
+                            <Typography gutterBottom>Licznik: <strong>{readingToEdit.meter_serial_number}</strong> ({readingToEdit.meter_type})</Typography>
+                            <Typography gutterBottom>Zapisujący: <strong>{readingToEdit.email}</strong></Typography>
+                            <Typography gutterBottom>Data odczytu: <strong>{new Date(readingToEdit.reading_date).toLocaleDateString()}</strong> (niezmienna)</Typography>
+                            <TextField
+                                autoFocus
+                                margin="dense"
+                                label={`Nowa wartość odczytu (${getUnitForMeterType(readingToEdit.meter_type)})`}
+                                type="number"
+                                fullWidth
+                                variant="outlined"
+                                value={editedReadingValue}
+                                onChange={(e) => setEditedReadingValue(e.target.value)}
+                                className="mb-3"
+                                InputProps={{
+                                    endAdornment: <Typography variant="caption" sx={{ ml: 0.5 }}>{getUnitForMeterType(readingToEdit.meter_type)}</Typography>
+                                }}
+                            />
+                            {error && <Alert severity="error" className="mt-2">{error}</Alert>}
+                        </>
+                    )}
+                </DialogContent>
+                <DialogActions className="p-4">
+                    <Button onClick={() => setOpenEditReadingDialog(false)} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
+                    <Button onClick={confirmAndUpdateReading} variant="contained" disabled={isSubmittingReading || !editedReadingValue.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}>
+                        {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Zapisz Zmiany'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Reading Confirmation Dialog */}
+            <Dialog open={openDeleteReadingDialog} onClose={handleCloseDeleteReadingDialog} fullWidth maxWidth="xs">
+                <DialogTitle className="text-ars-red">Potwierdź Usunięcie Odczytu</DialogTitle>
+                <DialogContent>
+                    {readingToDelete && (
+                        <DialogContentText>
+                            Czy na pewno chcesz usunąć odczyt wartości <strong>{readingToDelete.value}</strong>
+                            {` ${getUnitForMeterType(readingToDelete.meter_type || meters.find(m => m.serial_number === readingToDelete.meter_serial_number)?.meter_type || '')}`}
+                            <br />
+                            dla licznika <strong>{readingToDelete.meter_serial_number}</strong>
+                            <br />
+                            z dnia <strong>{new Date(readingToDelete.reading_date).toLocaleDateString()}</strong>
+                            (ID: {readingToDelete.reading_id})?
+                        </DialogContentText>
+                    )}
+                    {error && <Alert severity="error" className="mt-2">{error}</Alert>}
+                </DialogContent>
+                <DialogActions className="p-4">
+                    <Button onClick={handleCloseDeleteReadingDialog} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
+                    <Button onClick={confirmAndDeleteReading} variant="contained" color="error" disabled={isSubmittingReading} sx={{ backgroundColor: 'var(--ars-red)', '&:hover': { backgroundColor: '#dc2626' } }}>
+                        {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Usuń'}
                     </Button>
                 </DialogActions>
             </Dialog>

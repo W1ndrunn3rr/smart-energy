@@ -334,6 +334,7 @@ def login(user_data: APIUserLogin) -> Dict[str, Any]:
     """Authenticate a user."""
     try:
         user = database.login_user(user_data.email, user_data.password)
+        print (f"User: {user_data.password}")
         if not user:
             return {"message": "Invalid credentials", "access_level": None}
         return {"message": "Login successful", "access_level": user.access_level}

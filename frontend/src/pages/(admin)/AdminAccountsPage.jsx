@@ -3,12 +3,13 @@ import {
     Button, TextField, Select, MenuItem, FormControl, InputLabel,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-    CircularProgress, Alert, IconButton, Box, InputAdornment, Typography, Switch
+    CircularProgress, Alert, IconButton, Box, InputAdornment, Typography
+    // Usunięto Switch, bo nie będzie już używany do blokowania
 } from '@mui/material';
 import {
     Edit as EditIcon,
-    Block as BlockIcon,
-    LockOpen as LockOpenIcon,
+    // Block as BlockIcon, // Usunięto ikonę Block
+    // LockOpen as LockOpenIcon, // Usunięto ikonę LockOpen
     Add as AddIcon,
     Search as SearchIcon,
     Clear as ClearIcon,
@@ -23,6 +24,7 @@ const getAccessLevelName = (level) => {
         case 2: return 'Manager';
         case 3: return 'Technik';
         case 4: return 'User (Gość)';
+        // Usunięto case 0, bo status 'Zablokowany' nie będzie już wyświetlany w ten sposób
         default: return 'Nieznany';
     }
 };
@@ -44,7 +46,7 @@ const AdminAccountsPage = () => {
     // Stany dla edycji użytkownika
     const [openEditUserDialog, setOpenEditUserDialog] = useState(false);
     const [userToEdit, setUserToEdit] = useState(null);
-    const [editedUser, setEditedUser] = useState({ id: null, email: '', access_level: 4, is_active: true });
+    const [editedUser, setEditedUser] = useState({ id: null, email: '', access_level: 4, newPassword: '' });
 
 
     const fetchUsers = async () => {
@@ -125,10 +127,18 @@ const AdminAccountsPage = () => {
         setError('');
         setSuccessMessage('');
         try {
+            // Usunięto hashowanie hasła. Hasło jest wysyłane jako tekst jawny.
+            // Zgodnie z obrazkiem API, endpoint /create_user oczekuje jawnego hasła.
+            const payload = {
+                email: newUser.email,
+                password: newUser.password, // Wysyłanie jawnego hasła
+                access_level: parseInt(newUser.access_level, 10), // Upewnij się, że access_level jest liczbą
+            };
+
             const response = await fetch(`${API_URL}/create_user`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', },
-                body: JSON.stringify(newUser),
+                body: JSON.stringify(payload),
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Nie udało się dodać użytkownika.' }));
@@ -147,7 +157,11 @@ const AdminAccountsPage = () => {
     // EDIT User
     const handleOpenEditUserDialog = (user) => {
         setUserToEdit(user);
-        setEditedUser({ id: user.id, email: user.email, access_level: user.access_level, is_active: user.is_active });
+        setEditedUser({// Zachowujemy ID, jeśli jest używane
+            email: user.email, // Email jest teraz tylko do odczytu w tym stanie
+            access_level: user.access_level,
+            newPassword: ''
+        });
         setError('');
         setSuccessMessage('');
         setOpenEditUserDialog(true);
@@ -169,34 +183,74 @@ const AdminAccountsPage = () => {
         setError('');
         setSuccessMessage('');
 
-        // Przygotuj dane do wysłania - API może oczekiwać tylko zmienionych pól lub całego obiektu
-        // Endpoint /update_user sugeruje, że może przyjmować ID w ciele lub jako parametr
-        // Załóżmy, że przyjmuje email jako identyfikator w ciele, a reszta to aktualizowane dane
-        const payload = {
-            email: userToEdit.email, // Identyfikator użytkownika
-            new_email: editedUser.email, // Jeśli email może być zmieniony
-            access_level: editedUser.access_level,
-            // hasło nie jest tutaj edytowane, można dodać osobny mechanizm
-        };
-        // Jeśli API oczekuje ID, użyj userToEdit.id
+        let passwordUpdateSuccess = true;
+        let roleUpdateSuccess = true;
+        let messages = [];
 
-        try {
-            const response = await fetch(`${API_URL}/update_user`, { // Dostosuj endpoint jeśli trzeba
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Nie udało się zaktualizować użytkownika.' }));
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        // 1. Aktualizacja hasła, jeśli zostało zmienione
+        if (editedUser.newPassword && editedUser.newPassword.trim() !== '') {
+            const newPasswordTrimmed = editedUser.newPassword.trim();
+            // Usunięto hashowanie hasła. Hasło jest wysyłane jako tekst jawny.
+            // API endpoint /update_user_password oczekuje jawnego hasła
+            // pod parametrem 'hashed_password' (zgodnie z obrazkiem).
+
+            try {
+                // Parametr w URL to 'hashed_password', ale teraz będzie zawierał jawne hasło.
+                const passwordUpdateUrlString = `${API_URL}/update_user_password?user_email=${encodeURIComponent(userToEdit.email)}&new_password=${encodeURIComponent(newPasswordTrimmed)}`;
+                console.log('Aktualizacja hasła - URL:', passwordUpdateUrlString);
+                console.log('Aktualizacja hasła - wysyłane "hashed_password" (powinno być jawne):', newPasswordTrimmed);
+                const response = await fetch(passwordUpdateUrlString, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Nie udało się zaktualizować hasła.' }));
+                    throw new Error(errorData.detail || `Błąd aktualizacji hasła: ${response.status}`);
+                }
+                messages.push('Hasło zostało pomyślnie zaktualizowane.');
+            } catch (err) {
+                console.error("Błąd podczas aktualizacji hasła:", err);
+                setError(prev => prev ? `${prev}\n${err.message}` : err.message);
+                passwordUpdateSuccess = false;
             }
-            setSuccessMessage(`Dane użytkownika ${editedUser.email} zostały pomyślnie zaktualizowane.`);
-            handleCloseEditUserDialog();
-            fetchUsers();
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        }
+
+        // 2. Aktualizacja roli, jeśli została zmieniona
+        const newAccessLevel = parseInt(editedUser.access_level, 10);
+        if (newAccessLevel !== userToEdit.access_level) {
+            try {
+                // Bezpośrednie budowanie URL jako string dla aktualizacji roli
+                const roleUpdateUrlString = `${API_URL}/update_user_role?user_email=${encodeURIComponent(userToEdit.email)}&user_role=${encodeURIComponent(newAccessLevel.toString())}`;
+
+                const response = await fetch(roleUpdateUrlString, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Nie udało się zaktualizować roli.' }));
+                    throw new Error(errorData.detail || `Błąd aktualizacji roli: ${response.status}`);
+                }
+                messages.push('Rola użytkownika została pomyślnie zaktualizowana.');
+            } catch (err) {
+                console.error("Błąd podczas aktualizacji roli:", err);
+                setError(prev => prev ? `${prev}\n${err.message}` : err.message);
+                roleUpdateSuccess = false;
+            }
+        }
+
+        setIsLoading(false);
+
+        if (messages.length > 0) {
+            setSuccessMessage(messages.join(' '));
+        }
+
+        if (passwordUpdateSuccess && roleUpdateSuccess) {
+            if ((editedUser.newPassword && editedUser.newPassword.trim() !== '' && passwordUpdateSuccess) ||
+                (newAccessLevel !== userToEdit.access_level && roleUpdateSuccess) ||
+                (!(editedUser.newPassword && editedUser.newPassword.trim() !== '') && !(newAccessLevel !== userToEdit.access_level))) {
+                handleCloseEditUserDialog();
+                fetchUsers();
+            }
         }
     };
 
@@ -219,7 +273,7 @@ const AdminAccountsPage = () => {
         try {
             const response = await fetch(`${API_URL}/users/${userToDelete.email}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json', },
+                headers: { 'Content-Type': 'application/json' },
             });
             if (!response.ok) {
                 let errorDetail = `HTTP error! status: ${response.status}`;
@@ -238,34 +292,6 @@ const AdminAccountsPage = () => {
             handleCloseDeleteConfirmDialog();
         }
     };
-
-    // BLOCK/UNBLOCK User
-    const handleToggleBlockUser = async (user) => {
-        setIsLoading(true);
-        setError('');
-        setSuccessMessage('');
-        const newStatus = !user.is_active;
-
-        try {
-            const response = await fetch(`${API_URL}/users/${user.email}/block`, {
-                method: 'PUT', // Zgodnie z obrazkiem API, endpoint /block to PUT
-                headers: { 'Content-Type': 'application/json' },
-                // API może oczekiwać w ciele nowego statusu lub samo przełączać
-                // body: JSON.stringify({ is_active: newStatus }) // Jeśli API tego wymaga
-            });
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: `Nie udało się zmienić statusu użytkownika.` }));
-                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-            }
-            setSuccessMessage(`Użytkownik ${user.email} został ${newStatus ? 'odblokowany' : 'zablokowany'}.`);
-            fetchUsers(); // Odśwież listę
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
 
     const usersToDisplay = filteredUsers;
 
@@ -312,7 +338,7 @@ const AdminAccountsPage = () => {
                             <TableRow>
                                 <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Email</TableCell>
                                 <TableCell align="right" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Poziom dostępu</TableCell>
-                                <TableCell align="center" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                                {/* Usunięto kolumnę Status */}
                                 <TableCell align="center" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Akcje</TableCell>
                             </TableRow>
                         </TableHead>
@@ -325,23 +351,17 @@ const AdminAccountsPage = () => {
                                     >
                                         <TableCell component="th" scope="row">{user.email || 'Brak emaila'}</TableCell>
                                         <TableCell align="right">{getAccessLevelName(user.access_level)}</TableCell>
-                                        <TableCell align="center">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${user.is_active !== false ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                                {user.is_active !== false ? 'Aktywny' : 'Zablokowany'}
-                                            </span>
-                                        </TableCell>
+                                        {/* Usunięto komórkę Status */}
                                         <TableCell align="center">
                                             <IconButton size="small" onClick={() => handleOpenEditUserDialog(user)} sx={{ color: 'var(--ars-lightblue)' }}><EditIcon /></IconButton>
-                                            <IconButton size="small" onClick={() => handleToggleBlockUser(user)} sx={{ color: user.is_active !== false ? 'var(--ars-orange)' : 'var(--ars-green)' }}>
-                                                {user.is_active !== false ? <BlockIcon /> : <LockOpenIcon />}
-                                            </IconButton>
+                                            {/* Usunięto IconButton do blokowania/odblokowywania */}
                                             <IconButton size="small" onClick={() => handleOpenDeleteConfirmDialog(user)} sx={{ color: '#c82333' }}><DeleteIcon /></IconButton>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} align="center">
+                                    <TableCell colSpan={3} align="center"> {/* Zmieniono colSpan na 3 */}
                                         {isLoading ? 'Ładowanie...' : searchQuery ? 'Brak wyników wyszukiwania.' : 'Brak użytkowników do wyświetlenia.'}
                                     </TableCell>
                                 </TableRow>
@@ -426,23 +446,34 @@ const AdminAccountsPage = () => {
                     <DialogContent>
                         <DialogContentText className="mb-4">
                             Zmień dane użytkownika <Typography component="span" fontWeight="bold">{userToEdit.email}</Typography>.
-                            Pozostawienie pola hasła pustego nie zmieni obecnego hasła.
+                            <br />
+                            <Typography component="span" variant="caption">Adres email nie może być zmieniony.</Typography>
                         </DialogContentText>
                         {error && <Alert severity="error" className="mb-2">{error}</Alert>}
                         <TextField
-                            autoFocus
+                            // autoFocus // Usunięto autoFocus, aby nie kierować na nieedytowalne pole
                             margin="dense"
                             name="email"
-                            label="Adres Email"
+                            label="Adres Email (nieedytowalny)"
                             type="email"
                             fullWidth
                             variant="outlined"
-                            value={editedUser.email}
+                            value={userToEdit.email} // Wyświetlamy email z userToEdit
+                            disabled // Pole email jest wyłączone
+                            className="mb-4"
+                        />
+                        <TextField
+                            autoFocus // Przeniesiono autoFocus na pierwsze edytowalne pole
+                            margin="dense"
+                            name="newPassword"
+                            label="Nowe Hasło (pozostaw puste, aby nie zmieniać)"
+                            type="password"
+                            fullWidth
+                            variant="outlined"
+                            value={editedUser.newPassword}
                             onChange={handleEditedUserChange}
                             className="mb-4"
                         />
-                        {/* Można dodać pole do zmiany hasła, jeśli jest taka potrzeba */}
-                        {/* <TextField margin="dense" name="password" label="Nowe Hasło (opcjonalnie)" type="password" fullWidth variant="outlined" onChange={handleEditedUserChange} className="mb-4"/> */}
                         <FormControl fullWidth margin="dense" className="mb-4">
                             <InputLabel id="edit-access-level-label">Poziom Dostępu</InputLabel>
                             <Select
@@ -456,7 +487,6 @@ const AdminAccountsPage = () => {
                                 <MenuItem value={2}>{getAccessLevelName(2)}</MenuItem>
                                 <MenuItem value={3}>{getAccessLevelName(3)}</MenuItem>
                                 <MenuItem value={4}>{getAccessLevelName(4)}</MenuItem>
-                                {/* Można dodać inne poziomy, jeśli są używane */}
                             </Select>
                         </FormControl>
                         {/* Opcjonalnie: Przełącznik is_active, jeśli /update_user go obsługuje */}

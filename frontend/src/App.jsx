@@ -8,11 +8,11 @@ import AdminAccountsPage from './pages/(admin)/AdminAccountsPage';
 import AdminMetersPage from './pages/(admin)/AdminMetersPage';
 import AdminObjectsPage from './pages/(admin)/AdminObjectsPage';
 import AdminReportsPage from './pages/(admin)/AdminReportsPage';
-import ManagerHomePage from './pages/(manager)/ManagerHomePage'; // Upewnij się, że jest import
-import ManagerMetersPage from './pages/(manager)/ManagerMetersPage'; // Nowy import
-import ManagerReportsPage from './pages/(manager)/ManagerReportsPage'; // Nowy import
-import TechnicianHomePage from './pages/(technician)/TechnicianHomePage'; // Nowy import
-import TechnicianDataEntryPage from './pages/(technician)/TechnicianDataEntryPage'; // Nowy import
+import ManagerHomePage from './pages/(manager)/ManagerHomePage';
+import ManagerMetersPage from './pages/(manager)/ManagerMetersPage';
+import ManagerReportsPage from './pages/(manager)/ManagerReportsPage';
+import TechnicianHomePage from './pages/(technician)/TechnicianHomePage';
+import TechnicianDataEntryPage from './pages/(technician)/TechnicianDataEntryPage';
 import UserHomePage from './pages/(user)/UserHomePage';
 import UserMetersPage from './pages/(user)/UserMetersPage';
 import Unauthorized from './pages/(common)/Unauthorized';

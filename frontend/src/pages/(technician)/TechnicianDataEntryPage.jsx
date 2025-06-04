@@ -51,6 +51,7 @@ const TechnicianDataEntryPage = () => {
     const [openAddReadingDialog, setOpenAddReadingDialog] = useState(false);
     const [currentMeterForDialog, setCurrentMeterForDialog] = useState(null);
     const [newReadingValue, setNewReadingValue] = useState('');
+    const [newReadingIdInput, setNewReadingIdInput] = useState(''); // <-- DODANO: Stan dla ID nowego odczytu
 
     const [openEditReadingDialog, setOpenEditReadingDialog] = useState(false);
     const [readingToEdit, setReadingToEdit] = useState(null);
@@ -157,20 +158,28 @@ const TechnicianDataEntryPage = () => {
         }
         setCurrentMeterForDialog(meter);
         setNewReadingValue('');
+        setNewReadingIdInput(''); // <-- DODANO: Resetuj pole ID odczytu
         setError('');
         setOpenAddReadingDialog(true);
     };
 
     const confirmAndCreateReading = () => {
-        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility) {
-            setError("Wartość odczytu jest wymagana.");
+        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility || !newReadingIdInput.trim()) { // <-- ZMODYFIKOWANO: Walidacja dla newReadingIdInput
+            setError("Numer seryjny odczytu (ID) oraz wartość odczytu są wymagane."); // Komunikat błędu w dialogu
             return;
         }
+        const parsedReadingId = parseInt(newReadingIdInput, 10);
+        if (isNaN(parsedReadingId)) {
+            setError("Numer seryjny odczytu (ID) musi być liczbą całkowitą."); // Komunikat błędu w dialogu
+            return;
+        }
+
         setPendingSaveAction(() => async () => {
             setIsSubmitting(true);
             setError('');
             setSuccessMessage('');
             const readingData = {
+                reading_id: parsedReadingId, // <-- DODANO: Użyj sparsowanego ID odczytu
                 meter_serial_number: currentMeterForDialog.serial_number,
                 email: currentUserEmail,
                 value: parseFloat(newReadingValue),
@@ -212,17 +221,29 @@ const TechnicianDataEntryPage = () => {
             setError("Wartość odczytu jest wymagana.");
             return;
         }
+
+        // Dodano sprawdzenie istnienia reading_id, analogicznie do AdminMetersPage
+        if (readingToEdit.reading_id === undefined || readingToEdit.reading_id === null) {
+            setError("Brak ID odczytu. Nie można zaktualizować.");
+            console.error("confirmAndUpdateReading: reading_id is missing in readingToEdit", readingToEdit);
+            return;
+        }
+
         setPendingSaveAction(() => async () => {
             setIsSubmitting(true);
             setError('');
             setSuccessMessage('');
+
+            // Zaktualizowano payload, aby był spójny z AdminMetersPage i wysyłał reading_id
             const updatePayload = {
-                facility_name: selectedFacility.name,
-                meter_serial_number: readingToEdit.meter_serial_number,
-                user_email: readingToEdit.user_email,
-                reading_date: new Date(readingToEdit.reading_date).toISOString().split('T')[0],
+                reading_id: readingToEdit.reading_id, // Kluczowy identyfikator odczytu
                 value: parseFloat(editedReadingValue),
+                reading_date: new Date(readingToEdit.reading_date).toISOString().split('T')[0], // Data odczytu (zazwyczaj nieedytowalna, ale wysyłana dla kontekstu)
+                meter_serial_number: readingToEdit.meter_serial_number, // Numer seryjny licznika dla kontekstu
+                email: readingToEdit.email, // Email użytkownika, który pierwotnie zarejestrował odczyt (zakładając, że readingToEdit.email istnieje)
+                // Usunięto facility_name, jeśli API /update_reading go nie wymaga przy podaniu reading_id
             };
+
             try {
                 const response = await fetch(`${API_URL}/update_reading`, {
                     method: 'PUT',
@@ -254,22 +275,35 @@ const TechnicianDataEntryPage = () => {
     };
 
     const confirmAndDeleteReading = async () => {
-        if (!readingToDelete || !selectedFacility) return;
+        if (!readingToDelete || !selectedFacility) {
+            setError("Nie można usunąć odczytu. Brakujące dane."); // Ustawienie błędu, jeśli brakuje danych
+            return;
+        }
+
+        // Dodano sprawdzenie istnienia reading_id, analogicznie do AdminMetersPage
+        if (readingToDelete.reading_id === undefined || readingToDelete.reading_id === null) {
+            setError("Brak ID odczytu. Nie można usunąć.");
+            console.error("confirmAndDeleteReading: reading_id is missing in readingToDelete", readingToDelete);
+            setOpenDeleteReadingDialog(false); // Zamknij dialog, jeśli ID brakuje
+            return;
+        }
+
         setIsSubmitting(true);
         setError('');
         setSuccessMessage('');
         try {
-            const deletePayload = { reading_date: new Date(readingToDelete.reading_date).toISOString().split('T')[0] };
-            const response = await fetch(`${API_URL}/delete_reading/${encodeURIComponent(readingToDelete.user_email)}/${encodeURIComponent(readingToDelete.meter_serial_number)}`, {
+            // Zmieniono endpoint i usunięto body, analogicznie do AdminMetersPage
+            const response = await fetch(`${API_URL}/delete_reading/${readingToDelete.reading_id}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(deletePayload)
+                headers: {
+                    // 'Content-Type': 'application/json', // Zwykle niepotrzebne dla DELETE bez body
+                },
             });
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || 'Nie udało się usunąć odczytu.');
+                const errorData = await response.json().catch(() => ({ detail: 'Nie udało się usunąć odczytu lub sparsować błędu.' }));
+                throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-            setSuccessMessage('Odczyt został pomyślnie usunięty.');
+            setSuccessMessage(`Odczyt (ID: ${readingToDelete.reading_id}) został pomyślnie usunięty.`);
             fetchReadingsForFacility(selectedFacility.name);
             setOpenDeleteReadingDialog(false);
         } catch (err) {
@@ -450,7 +484,7 @@ const TechnicianDataEntryPage = () => {
             )}
 
             {/* Add Reading Dialog */}
-            <Dialog open={openAddReadingDialog} onClose={() => setOpenAddReadingDialog(false)} fullWidth maxWidth="xs">
+            <Dialog open={openAddReadingDialog} onClose={() => { setOpenAddReadingDialog(false); setError(''); }} fullWidth maxWidth="xs">
                 <DialogTitle className="text-ars-deepblue">Dodaj Nowy Odczyt</DialogTitle>
                 <DialogContent>
                     {currentMeterForDialog && (
@@ -458,6 +492,18 @@ const TechnicianDataEntryPage = () => {
                             <Typography gutterBottom>Licznik: <strong>{currentMeterForDialog.serial_number}</strong> ({currentMeterForDialog.meter_type})</Typography>
                             <Typography gutterBottom>Technik: <strong>{currentUserEmail}</strong></Typography>
                             <Typography gutterBottom>Data odczytu: <strong>{new Date().toLocaleDateString()}</strong></Typography>
+                            <TextField // <-- DODANO: Pole dla Numeru Seryjnego Odczytu (ID)
+                                margin="dense"
+                                label="Numer Seryjny Odczytu (ID)"
+                                type="number"
+                                fullWidth
+                                variant="outlined"
+                                value={newReadingIdInput}
+                                onChange={(e) => setNewReadingIdInput(e.target.value)}
+                                className="mb-3"
+                                error={!!error && (error.toLowerCase().includes("numer seryjny odczytu") || error.toLowerCase().includes("id odczytu"))}
+                                helperText={error && (error.toLowerCase().includes("numer seryjny odczytu") || error.toLowerCase().includes("id odczytu")) ? error : ""}
+                            />
                             <TextField
                                 autoFocus
                                 margin="dense"
@@ -471,14 +517,16 @@ const TechnicianDataEntryPage = () => {
                                 InputProps={{
                                     endAdornment: <Typography variant="caption" sx={{ ml: 0.5 }}>{getUnitForMeterType(currentMeterForDialog.meter_type)}</Typography>
                                 }}
+                                error={!!error && error.toLowerCase().includes("wartość odczytu")} // Pokaż błąd walidacji w polu
+                                helperText={error && error.toLowerCase().includes("wartość odczytu") ? error : (error && !error.toLowerCase().includes("numer seryjny odczytu") && !error.toLowerCase().includes("id odczytu") ? error : "")} // Wyświetl komunikat błędu pod polem, jeśli nie dotyczy ID
                             />
-                            {error && <Alert severity="error" className="mt-2">{error}</Alert>}
+                            {/* Usunięto wyświetlanie ogólnego błędu tutaj, bo jest już helperText w polach */}
                         </>
                     )}
                 </DialogContent>
                 <DialogActions className="p-4">
-                    <Button onClick={() => setOpenAddReadingDialog(false)} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
-                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmitting || !newReadingValue.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}>
+                    <Button onClick={() => { setOpenAddReadingDialog(false); setError(''); }} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
+                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmitting || !newReadingValue.trim() || !newReadingIdInput.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}> {/* <-- ZMODYFIKOWANO: Warunek disabled */}
                         {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Zapisz'}
                     </Button>
                 </DialogActions>
