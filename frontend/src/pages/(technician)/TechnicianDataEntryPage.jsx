@@ -81,7 +81,13 @@ const TechnicianDataEntryPage = () => {
     const fetchFacilities = useCallback(async () => {
         setIsLoadingFacilities(true);
         try {
-            const response = await fetch(`${API_URL}/facilities`);
+            // Zmieniono endpoint na GET/facilities/user/{email}
+            if (!currentUserEmail) {
+                setFacilities([]);
+                setIsLoadingFacilities(false);
+                return;
+            }
+            const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(currentUserEmail)}`);
             if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
             const data = await response.json();
             setFacilities(Array.isArray(data) ? data : (data.facilities || []));
@@ -91,11 +97,13 @@ const TechnicianDataEntryPage = () => {
         } finally {
             setIsLoadingFacilities(false);
         }
-    }, []);
+    }, [currentUserEmail]);
 
     useEffect(() => {
-        fetchFacilities();
-    }, [fetchFacilities]);
+        if (currentUserEmail) {
+            fetchFacilities();
+        }
+    }, [fetchFacilities, currentUserEmail]);
 
     const fetchMetersForFacility = useCallback(async (facilityName) => {
         if (!facilityName) {

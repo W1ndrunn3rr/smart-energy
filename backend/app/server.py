@@ -199,7 +199,7 @@ def assign_facility(assignment: APIAssignment) -> Dict[str, Any]:
     """Assign a facility to a user."""
     try:
         database.assign_user_to_facility(
-            assignment.user_email, assignment.facility_name
+            assignment.email, assignment.facility_name
         )
         return {"message": "Facility assigned successfully", "assignment": assignment}
     except ValueError as e:
@@ -225,7 +225,7 @@ def unassign_facility(assignment: APIAssignment) -> Dict[str, str]:
     """Unassign a facility from a user."""
     try:
         database.remove_user_from_facility(
-            assignment.user_email, assignment.facility_name
+            assignment.email, assignment.facility_name
         )
         return {"message": "Facility unassigned successfully"}
     except ValueError as e:

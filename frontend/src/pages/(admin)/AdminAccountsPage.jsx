@@ -3,20 +3,18 @@ import {
     Button, TextField, Select, MenuItem, FormControl, InputLabel,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-    CircularProgress, Alert, IconButton, Box, InputAdornment, Typography
-    // Usunięto Switch, bo nie będzie już używany do blokowania
+    CircularProgress, Alert, IconButton, Box, InputAdornment, Typography, Collapse, List, ListItem, ListItemText
 } from '@mui/material';
 import {
     Edit as EditIcon,
-    // Block as BlockIcon, // Usunięto ikonę Block
-    // LockOpen as LockOpenIcon, // Usunięto ikonę LockOpen
     Add as AddIcon,
     Search as SearchIcon,
     Clear as ClearIcon,
-    Delete as DeleteIcon
+    Delete as DeleteIcon,
+    KeyboardArrowDown as KeyboardArrowDownIcon,
+    KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { API_URL } from '../../definitions';
-// import { sessionManager } from '../../scripts/session_manager'; // Odkomentuj jeśli używasz
 
 const getAccessLevelName = (level) => {
     switch (level) {
@@ -24,7 +22,6 @@ const getAccessLevelName = (level) => {
         case 2: return 'Manager';
         case 3: return 'Technik';
         case 4: return 'User (Gość)';
-        // Usunięto case 0, bo status 'Zablokowany' nie będzie już wyświetlany w ten sposób
         default: return 'Nieznany';
     }
 };
@@ -48,6 +45,14 @@ const AdminAccountsPage = () => {
     const [userToEdit, setUserToEdit] = useState(null);
     const [editedUser, setEditedUser] = useState({ id: null, email: '', access_level: 4, newPassword: '' });
 
+    // Nowe stany dla rozwijania listy obiektów
+    const [expandedUserEmail, setExpandedUserEmail] = useState(null);
+    const [facilitiesForUser, setFacilitiesForUser] = useState([]);
+    const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
+
+    const [allFacilities, setAllFacilities] = useState([]);
+    const [assignLoading, setAssignLoading] = useState(false);
+    const [assignError, setAssignError] = useState('');
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -293,6 +298,90 @@ const AdminAccountsPage = () => {
         }
     };
 
+    // Funkcja do pobrania facilities dla danego użytkownika
+    const handleToggleFacilities = async (user) => {
+        if (expandedUserEmail === user.email) {
+            setExpandedUserEmail(null);
+            setFacilitiesForUser([]);
+            return;
+        }
+        setExpandedUserEmail(user.email);
+        setFacilitiesForUser([]);
+        setIsLoadingFacilities(true);
+        try {
+            const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(user.email)}`);
+            if (!response.ok) throw new Error('Nie udało się pobrać obiektów dla użytkownika.');
+            const data = await response.json();
+            const facilitiesArray = Array.isArray(data) ? data : (data.facilities || []);
+            setFacilitiesForUser(facilitiesArray);
+        } catch (err) {
+            setFacilitiesForUser([]);
+        } finally {
+            setIsLoadingFacilities(false);
+        }
+    };
+
+    // Pobierz wszystkie dostępne obiekty (facilities) do przypisywania
+    useEffect(() => {
+        const fetchAllFacilities = async () => {
+            try {
+                const response = await fetch(`${API_URL}/facilities`);
+                if (!response.ok) throw new Error('Nie udało się pobrać wszystkich obiektów.');
+                const data = await response.json();
+                setAllFacilities(Array.isArray(data) ? data : (data.facilities || []));
+            } catch (err) {
+                setAllFacilities([]);
+            }
+        };
+        fetchAllFacilities();
+    }, []);
+
+    // Przypisz użytkownika do facility
+    const handleAssignFacility = async (userEmail, facilityName) => {
+        setAssignLoading(true);
+        setAssignError('');
+        try {
+            const response = await fetch(`${API_URL}/facilities/assignments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, facility_name: facilityName }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Nie udało się przypisać obiektu.');
+            }
+            // Odśwież listę przypisanych obiektów
+            await handleToggleFacilities({ email: userEmail });
+        } catch (err) {
+            setAssignError(err.message);
+        } finally {
+            setAssignLoading(false);
+        }
+    };
+
+    // Usuń przypisanie użytkownika do facility
+    const handleUnassignFacility = async (userEmail, facilityName) => {
+        setAssignLoading(true);
+        setAssignError('');
+        try {
+            const response = await fetch(`${API_URL}/facilities/unassignments`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: userEmail, facility_name: facilityName }),
+            });
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Nie udało się usunąć przypisania.');
+            }
+            // Odśwież listę przypisanych obiektów
+            await handleToggleFacilities({ email: userEmail });
+        } catch (err) {
+            setAssignError(err.message);
+        } finally {
+            setAssignLoading(false);
+        }
+    };
+
     const usersToDisplay = filteredUsers;
 
     return (
@@ -308,7 +397,7 @@ const AdminAccountsPage = () => {
                     variant="outlined"
                     size="small"
                     value={searchQuery}
-                    onChange={handleSearchChange}
+                    onChange={e => setSearchQuery(e.target.value)}
                     sx={{ width: '40%' }}
                     InputProps={{
                         startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>),
@@ -336,32 +425,130 @@ const AdminAccountsPage = () => {
                     <Table stickyHeader aria-label="sticky table">
                         <TableHead>
                             <TableRow>
+                                <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }} />
                                 <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Email</TableCell>
                                 <TableCell align="right" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Poziom dostępu</TableCell>
-                                {/* Usunięto kolumnę Status */}
                                 <TableCell align="center" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Akcje</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {usersToDisplay.length > 0 ? (
                                 usersToDisplay.map((user) => (
-                                    <TableRow
-                                        key={user.id || user.email}
-                                        sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: 'var(--ars-whitegrey)' } }}
-                                    >
-                                        <TableCell component="th" scope="row">{user.email || 'Brak emaila'}</TableCell>
-                                        <TableCell align="right">{getAccessLevelName(user.access_level)}</TableCell>
-                                        {/* Usunięto komórkę Status */}
-                                        <TableCell align="center">
-                                            <IconButton size="small" onClick={() => handleOpenEditUserDialog(user)} sx={{ color: 'var(--ars-lightblue)' }}><EditIcon /></IconButton>
-                                            {/* Usunięto IconButton do blokowania/odblokowywania */}
-                                            <IconButton size="small" onClick={() => handleOpenDeleteConfirmDialog(user)} sx={{ color: '#c82333' }}><DeleteIcon /></IconButton>
-                                        </TableCell>
-                                    </TableRow>
+                                    <React.Fragment key={user.id || user.email}>
+                                        <TableRow
+                                            sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: 'var(--ars-whitegrey)' } }}
+                                        >
+                                            <TableCell align="center" sx={{ width: 48 }}>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleToggleFacilities(user)}
+                                                    aria-label={expandedUserEmail === user.email ? "Ukryj obiekty" : "Pokaż obiekty"}
+                                                >
+                                                    {expandedUserEmail === user.email ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                                                </IconButton>
+                                            </TableCell>
+                                            <TableCell component="th" scope="row">{user.email || 'Brak emaila'}</TableCell>
+                                            <TableCell align="right">{getAccessLevelName(user.access_level)}</TableCell>
+                                            <TableCell align="center">
+                                                <IconButton size="small" onClick={() => handleOpenEditUserDialog(user)} sx={{ color: 'var(--ars-lightblue)' }}><EditIcon /></IconButton>
+                                                <IconButton size="small" onClick={() => handleOpenDeleteConfirmDialog(user)} sx={{ color: '#c82333' }}><DeleteIcon /></IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell colSpan={4} sx={{ p: 0, border: 0, background: '#f7fafd' }}>
+                                                <Collapse in={expandedUserEmail === user.email} timeout="auto" unmountOnExit>
+                                                    <Box sx={{ p: 2, display: 'flex', gap: 4, flexDirection: { xs: 'column', md: 'row' } }}>
+                                                        <Box flex={1}>
+                                                            <Typography variant="subtitle2" className="mb-2" sx={{ color: 'var(--ars-deepblue)' }}>
+                                                                Obiekty przypisane do użytkownika
+                                                            </Typography>
+                                                            {isLoadingFacilities && expandedUserEmail === user.email ? (
+                                                                <Box display="flex" justifyContent="center" alignItems="center" height={60}>
+                                                                    <CircularProgress size={24} />
+                                                                </Box>
+                                                            ) : facilitiesForUser.length > 0 && expandedUserEmail === user.email ? (
+                                                                <List dense>
+                                                                    {facilitiesForUser.map((facility) => (
+                                                                        <ListItem key={facility.name}>
+                                                                            <ListItemText
+                                                                                primary={facility.name}
+                                                                                secondary={facility.address ? `Adres: ${facility.address}` : null}
+                                                                            />
+                                                                            <IconButton
+                                                                                edge="end"
+                                                                                color="error"
+                                                                                size="small"
+                                                                                disabled={assignLoading || !facility.name}
+                                                                                onClick={() => handleUnassignFacility(user.email, facility.name)}
+                                                                                title="Usuń przypisanie"
+                                                                            >
+                                                                                <DeleteIcon />
+                                                                            </IconButton>
+                                                                        </ListItem>
+                                                                    ))}
+                                                                </List>
+                                                            ) : expandedUserEmail === user.email ? (
+                                                                <Typography variant="body2" color="textSecondary">
+                                                                    Brak przypisanych obiektów.
+                                                                </Typography>
+                                                            ) : null}
+                                                        </Box>
+                                                        <Box flex={1}>
+                                                            <Typography variant="subtitle2" className="mb-2" sx={{ color: 'var(--ars-deepblue)' }}>
+                                                                Wszystkie dostępne obiekty
+                                                            </Typography>
+                                                            {assignError && (
+                                                                <Alert severity="error" className="mb-2">{assignError}</Alert>
+                                                            )}
+                                                            <List dense>
+                                                                {allFacilities.map((facility) => {
+                                                                    const alreadyAssigned = facilitiesForUser.some(f => f.name === facility.name);
+                                                                    return (
+                                                                        <ListItem
+                                                                            key={facility.name}
+                                                                            secondaryAction={
+                                                                                alreadyAssigned ? (
+                                                                                    <IconButton
+                                                                                        edge="end"
+                                                                                        color="success"
+                                                                                        size="small"
+                                                                                        disabled
+                                                                                        title="Użytkownik już przypisany"
+                                                                                    >
+                                                                                        <AddIcon />
+                                                                                    </IconButton>
+                                                                                ) : (
+                                                                                    <IconButton
+                                                                                        edge="end"
+                                                                                        color="primary"
+                                                                                        size="small"
+                                                                                        disabled={assignLoading}
+                                                                                        onClick={() => handleAssignFacility(user.email, facility.name)}
+                                                                                        title="Przypisz użytkownika"
+                                                                                    >
+                                                                                        <AddIcon />
+                                                                                    </IconButton>
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            <ListItemText
+                                                                                primary={facility.name}
+                                                                                secondary={facility.address ? `Adres: ${facility.address}` : null}
+                                                                            />
+                                                                        </ListItem>
+                                                                    );
+                                                                })}
+                                                            </List>
+                                                        </Box>
+                                                    </Box>
+                                                </Collapse>
+                                            </TableCell>
+                                        </TableRow>
+                                    </React.Fragment>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center"> {/* Zmieniono colSpan na 3 */}
+                                    <TableCell colSpan={4} align="center">
                                         {isLoading ? 'Ładowanie...' : searchQuery ? 'Brak wyników wyszukiwania.' : 'Brak użytkowników do wyświetlenia.'}
                                     </TableCell>
                                 </TableRow>
