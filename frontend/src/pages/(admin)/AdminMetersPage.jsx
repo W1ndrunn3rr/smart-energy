@@ -88,31 +88,36 @@ const AdminMetersPage = () => {
         }
     }, []);
 
-
-    // Fetch all facilities for the dropdown
-    useEffect(() => {
-        const fetchFacilities = async () => {
-            setIsLoadingFacilities(true);
-            try {
-                const response = await fetch(`${API_URL}/facilities`);
-                if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
-                const data = await response.json();
-                if (Array.isArray(data)) {
-                    setFacilities(data);
-                } else if (data && Array.isArray(data.facilities)) {
-                    setFacilities(data.facilities);
-                } else {
-                    setFacilities([]);
-                }
-            } catch (err) {
-                setError(err.message);
+// Fetch all facilities for the dropdown - ZMIANA ENDPOINTU
+useEffect(() => {
+    const fetchFacilities = async () => {
+        setIsLoadingFacilities(true);
+        try {
+            if (!currentUserEmail) {
                 setFacilities([]);
-            } finally {
                 setIsLoadingFacilities(false);
+                return;
             }
-        };
-        fetchFacilities();
-    }, []);
+            // Zmieniono endpoint na GET/facilities/user/{email}
+            const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(currentUserEmail)}`);
+            if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                setFacilities(data);
+            } else if (data && Array.isArray(data.facilities)) {
+                setFacilities(data.facilities);
+            } else {
+                setFacilities([]);
+            }
+        } catch (err) {
+            setError(err.message);
+            setFacilities([]);
+        } finally {
+            setIsLoadingFacilities(false);
+        }
+    };
+    fetchFacilities();
+}, [currentUserEmail]);
 
     // Fetch meters for the selected facility
     const fetchMetersForFacility = useCallback(async (facilityName) => {
@@ -190,7 +195,7 @@ const AdminMetersPage = () => {
             setError("Najpierw wybierz obiekt.");
             return;
         }
-        // Zresetuj stan newMeter z domyślnymi wartościami dla PPE i mnożnej
+        // Zresetuj stan newMeter z domyślnymi wartościami dla PPE i mnożna
         setNewMeter({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1 });
         setError('');
         setSuccessMessage('');
@@ -205,8 +210,13 @@ const AdminMetersPage = () => {
         }));
     };
     const handleAddMeter = async () => {
-        if (!selectedFacility || !newMeter.serial_number.trim() || !newMeter.meter_type || !newMeter.ppe.trim()) {
-            setError("Numer seryjny, typ licznika oraz numer PPE są wymagane.");
+        // Numer PPE wymagany tylko dla Energia elektryczna
+        if (!selectedFacility || !newMeter.serial_number.trim() || !newMeter.meter_type) {
+            setError("Numer seryjny oraz typ licznika są wymagane.");
+            return;
+        }
+        if (newMeter.meter_type === 'Energia elektryczna' && (!newMeter.ppe || !newMeter.ppe.trim())) {
+            setError("Numer PPE jest wymagany dla liczników typu Energia elektryczna.");
             return;
         }
         if (newMeter.multiply_factor === '' || isNaN(parseFloat(newMeter.multiply_factor)) || parseFloat(newMeter.multiply_factor) <= 0) {
@@ -222,7 +232,9 @@ const AdminMetersPage = () => {
                 serial_number: newMeter.serial_number.trim(),
                 meter_type: newMeter.meter_type,
                 facility_name: selectedFacility.name,
-                ppe: newMeter.ppe.trim(),
+                ppe: newMeter.meter_type === 'Energia elektryczna'
+                    ? newMeter.ppe.trim()
+                    : '-', // dla innych liczników zawsze "-"
                 multiply_factor: parseFloat(newMeter.multiply_factor)
             };
             const response = await fetch(`${API_URL}/create_meter`, {
@@ -234,7 +246,7 @@ const AdminMetersPage = () => {
                 const errorData = await response.json().catch(() => ({ detail: 'Nie udało się dodać licznika.' }));
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-            setSuccessMessage(`Licznik "${newMeter.serial_number}" (PPE: ${newMeter.ppe}, Mnożna: ${newMeter.multiply_factor}) został pomyślnie dodany do obiektu "${selectedFacility.name}".`);
+            setSuccessMessage(`Licznik "${newMeter.serial_number}" (PPE: ${payload.ppe}, Mnożna: ${newMeter.multiply_factor}) został pomyślnie dodany do obiektu "${selectedFacility.name}".`);
             handleCloseAddMeterDialog();
             if (selectedFacility) fetchMetersForFacility(selectedFacility.name); // Odśwież listę liczników
         } catch (err) {
@@ -763,17 +775,22 @@ const AdminMetersPage = () => {
                             ))}
                         </Select>
                     </FormControl>
-                    <TextField
-                        margin="dense"
-                        name="ppe"
-                        label="Numer PPE"
-                        type="text"
-                        fullWidth
-                        variant="outlined"
-                        value={newMeter.ppe}
-                        onChange={handleNewMeterChange}
-                        className="mb-3"
-                    />
+                    {newMeter.meter_type === 'Energia elektryczna' && (
+                        <TextField
+                            margin="dense"
+                            name="ppe"
+                            label="Numer PPE"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={newMeter.ppe}
+                            onChange={handleNewMeterChange}
+                            className="mb-3"
+                            required
+                            error={!!error && error.toLowerCase().includes("ppe")}
+                            helperText="Wymagane dla liczników energii elektrycznej"
+                        />
+                    )}
                     <TextField
                         margin="dense"
                         name="multiply_factor"
@@ -783,7 +800,7 @@ const AdminMetersPage = () => {
                         variant="outlined"
                         value={newMeter.multiply_factor}
                         onChange={handleNewMeterChange}
-                        InputProps={{ inputProps: { min: 0.01, step: "any" } }} // Umożliwia liczby dziesiętne i minimalną wartość
+                        InputProps={{ inputProps: { min: 0.01, step: "any" } }}
                         helperText="Domyślnie 1. Musi być liczbą dodatnią."
                     />
                 </DialogContent>
