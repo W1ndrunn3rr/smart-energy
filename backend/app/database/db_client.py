@@ -241,7 +241,7 @@ class DataBase:
         """
         facility_id = self._get_facility_id(facility_name)
         query = """
-        SELECT serial_number, meter_type, ppe, multiply_factor
+        SELECT serial_number, meter_type, ppe, multiply_factor, description
         FROM meters
         WHERE facility_id = :facility_id
         """
@@ -255,6 +255,7 @@ class DataBase:
                 meter_type=row[1],
                 ppe=row[2],
                 multiply_factor=row[3],
+                description=row[4] if row[4] else None 
             )
             for row in result
         ]
@@ -271,7 +272,7 @@ class DataBase:
         """
         facility_id = self._get_facility_id(facility_name)
         query = """
-        SELECT serial_number, meter_type, ppe, multiply_factor
+        SELECT serial_number, meter_type, ppe, multiply_factor, description
         FROM meters
         WHERE facility_id = :facility_id AND meter_type = :meter_type
         """
@@ -286,6 +287,7 @@ class DataBase:
                 meter_type=row[1],
                 ppe=row[2],
                 multiply_factor=row[3],
+                description=row[4]
             )
             for row in result
         ]
@@ -305,8 +307,8 @@ class DataBase:
         facility_id = self._get_facility_id(meter_data.facility_name)
 
         query = """
-        INSERT INTO meters (meter_id, serial_number, meter_type, facility_id, ppe, multiply_factor)
-        VALUES (:meter_id, :serial_number, :meter_type, :facility_id, :ppe, :multiply_factor)
+        INSERT INTO meters (meter_id, serial_number, meter_type, facility_id, ppe, multiply_factor, description)
+        VALUES (:meter_id, :serial_number, :meter_type, :facility_id, :ppe, :multiply_factor, :description)
         """
 
         params = {
@@ -316,6 +318,7 @@ class DataBase:
             "facility_id": facility_id,
             "ppe": meter_data.ppe,
             "multiply_factor": meter_data.multiply_factor,
+            "description": meter_data.description
         }
 
         self._execute_query(query, params)
@@ -341,7 +344,8 @@ class DataBase:
         UPDATE meters
         SET meter_type = :meter_type,
             ppe = :ppe,
-            multiply_factor = :multiply_factor
+            multiply_factor = :multiply_factor,
+            description = :description
         WHERE serial_number = :serial_number
         """
         params = {
@@ -349,6 +353,7 @@ class DataBase:
             "meter_type": meter_data.meter_type,
             "ppe": meter_data.ppe,
             "multiply_factor": meter_data.multiply_factor,
+            "description": meter_data.description
         }
 
         self._execute_query(query, params)
