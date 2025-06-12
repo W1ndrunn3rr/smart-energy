@@ -34,23 +34,32 @@ def test_api_reading_model():
 
 def test_api_meter_model():
     """Test APIMeter model validation."""
-
     meter = APIMeter(
         serial_number="SN123",
         meter_type="elektryczny",
         facility_name="Biuro",
         ppe=None,
-        multiply_factor=1.0
+        multiply_factor=1.0,
+        description="Opis lokalizacji" 
     )
     assert meter.serial_number == "SN123"
     assert meter.meter_type == "elektryczny"
     assert meter.facility_name == "Biuro"
     
-
+    meter = APIMeter(
+        serial_number="SN123",
+        meter_type="elektryczny",
+        facility_name="Biuro",
+        ppe=None,
+        multiply_factor=1.0,
+        description=""
+    )
+    
     with pytest.raises(ValidationError):
         APIMeter(
-            serial_number="SN123"
+            serial_number="SN123" 
         )
+        
 
 def test_api_facility_model():
     """Test APIFacility model validation."""

@@ -89,14 +89,15 @@ def test_create_reading_error(client, mock_db):
 def test_get_meters(client, mock_db):
     """Test getting all meters for a facility."""
     mock_db.get_all_meters.return_value = [
-    APIMeter(
-        serial_number="SN123",
-        meter_type="electric",
-        facility_name="TestFacility",
-        ppe=None,
-        multiply_factor=1.0
-    )
-]
+        APIMeter(
+            serial_number="SN123",
+            meter_type="electric",
+            facility_name="TestFacility",
+            ppe=None,
+            multiply_factor=1.0,
+            description="Main hallway" 
+        )
+    ]
     
     response = client.get("/meters/TestFacility")
     assert response.status_code == 200
@@ -110,7 +111,8 @@ def test_create_meter(client, mock_db):
         "meter_type": "electric",
         "facility_name": "TestFacility",
         "ppe": None,
-        "multiply_factor": 1.0
+        "multiply_factor": 1.0,
+        "description": "Near entrance"  
     }
     
     response = client.post("/create_meter", json=meter_data)
@@ -118,7 +120,6 @@ def test_create_meter(client, mock_db):
     assert response.json()["message"] == "Meter created successfully"
     mock_db.add_meter.assert_called_once()
 
-# Facility endpoint tests
 def test_get_all_facilities(client, mock_db):
     """Test getting all facilities."""
     mock_db.get_all_facilities.return_value = [
@@ -133,6 +134,7 @@ def test_get_all_facilities(client, mock_db):
     assert response.status_code == 200
     assert "facilities" in response.json()
     assert len(response.json()["facilities"]) == 1
+
 
 def test_create_facility(client, mock_db):
     """Test creating a new facility."""
