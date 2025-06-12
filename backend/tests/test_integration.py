@@ -11,9 +11,8 @@ def client():
 @pytest.fixture
 def mock_db():
     with patch("app.server.database") as mock_db:
-        # Configure mock returns
         mock_db.login_user.return_value = APIUser(
-            email="technician@example.com", 
+            email="technician@example.com",
             password="hashed_pw", 
             access_level=3
         )
@@ -25,14 +24,15 @@ def mock_db():
             )
         ]
         mock_db.get_all_meters.return_value = [
-        APIMeter(
-            serial_number="E12345",
-            meter_type="electric",
-            facility_name="Office Building",
-            ppe=None,
-            multiply_factor=1.0
-        )
-    ]
+            APIMeter(
+                serial_number="E12345",
+                meter_type="electric",
+                facility_name="Office Building",
+                ppe=None,
+                multiply_factor=1.0,
+                description="Basement level"  # Dodane
+            )
+        ]
         yield mock_db
 
 def test_complete_workflow(client, mock_db):
