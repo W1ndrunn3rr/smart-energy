@@ -16,6 +16,7 @@ class APIMeter(BaseModel):
     facility_name: str
     ppe: Optional[str]
     multiply_factor: float
+    description: Optional[str]
 
 
 class APIFacility(BaseModel):

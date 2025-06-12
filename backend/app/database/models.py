@@ -30,6 +30,7 @@ class Meters(BaseModel):
     facility_id: int
     ppe: Optional[str]
     multiply_factor: float
+    description: Optional[str]
 
 
 class Readings(BaseModel):
