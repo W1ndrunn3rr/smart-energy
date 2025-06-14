@@ -19,51 +19,87 @@ const COMMON_METER_TYPES = [
 
 const getCurrentYear = () => new Date().getFullYear();
 
-const UserHomePage = () => {
+/**
+ * Komponent strony głównej użytkownika (klienta).
+ * Pozwala na wybór obiektu, przeglądanie i wizualizację zużycia liczników w formie wykresów.
+ * @component
+ */
+const AdminHomePage = () => {
     const userEmail = sessionManager.getUserEmail();
-    const [facility, setFacility] = useState(null);
+    const [facilities, setFacilities] = useState([]);
+    const [selectedFacility, setSelectedFacility] = useState(null);
     const [readings, setReadings] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [selectedYear, setSelectedYear] = useState(getCurrentYear());
 
     // Dla wykresu zbiorczego
     const [selectedMeterType, setSelectedMeterType] = useState(COMMON_METER_TYPES[0]);
-    // Dla wykresu pojedynczego licznika
-    const [selectedSerial, setSelectedSerial] = useState('');
+    // Dla wykresu agregacji pojedynczego licznika
+    const [selectedSerialAgg, setSelectedSerialAgg] = useState('');
+    // Dla wykresu odczytów pojedynczego licznika
+    const [selectedSerialSingle, setSelectedSerialSingle] = useState('');
 
-    // Pobierz facility i odczyty po zalogowaniu
+    /**
+     * Pobiera listę obiektów przypisanych do aktualnie zalogowanego użytkownika.
+     * Wywoływana automatycznie przy montowaniu komponentu.
+     * @function
+     * @async
+     */
     useEffect(() => {
-        const fetchFacilityAndReadings = async () => {
+        const fetchFacilities = async () => {
             setIsLoading(true);
-            setError('');
             try {
-                // 1. Pobierz facility przypisane do użytkownika
-                const facilityRes = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(userEmail)}`);
-                if (!facilityRes.ok) throw new Error('Nie udało się pobrać obiektu.');
-                const facilityData = await facilityRes.json();
-                const userFacility = Array.isArray(facilityData.facilities)
-                    ? facilityData.facilities[0]
-                    : (facilityData.facilities || [])[0];
-                if (!userFacility) throw new Error('Nie znaleziono przypisanego obiektu.');
-                setFacility(userFacility);
-
-                // 2. Pobierz odczyty dla tego obiektu i wybranego typu licznika
-                const readingsRes = await fetch(`${API_URL}/readings/${encodeURIComponent(userFacility.name)}/${encodeURIComponent(selectedMeterType)}`);
-                if (!readingsRes.ok) throw new Error('Nie udało się pobrać odczytów.');
-                const readingsData = await readingsRes.json();
-                setReadings(Array.isArray(readingsData) ? readingsData : (readingsData.readings || []));
+                // Użyj endpointu GET/facilities/user/{email}
+                const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(userEmail)}`);
+                if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
+                const data = await response.json();
+                console.log('fetchFacilities - response data:', data);
+                setFacilities(Array.isArray(data) ? data : (data.facilities || []));
             } catch (err) {
                 setError(err.message);
-                setFacility(null);
-                setReadings([]);
+                setFacilities([]);
             } finally {
                 setIsLoading(false);
             }
         };
-        if (userEmail) fetchFacilityAndReadings();
-    // eslint-disable-next-line
-    }, [userEmail, selectedMeterType]);
+        fetchFacilities();
+    }, [userEmail]);
+
+    /**
+     * Pobiera odczyty dla wybranego obiektu i typu licznika.
+     * @function
+     * @async
+     * @param {string} facilityName - Nazwa wybranego obiektu.
+     * @param {string} meterType - Typ licznika.
+     */
+    const fetchReadings = useCallback(async (facilityName, meterType) => {
+        if (!facilityName || !meterType) {
+            setReadings([]);
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/readings/${encodeURIComponent(facilityName)}/${encodeURIComponent(meterType)}`);
+            if (!response.ok) throw new Error('Nie udało się pobrać odczytów.');
+            const data = await response.json();
+            console.log('fetchReadings - response data:', data);
+            setReadings(Array.isArray(data) ? data : (data.readings || []));
+        } catch (err) {
+            setError(err.message);
+            setReadings([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (selectedFacility && selectedMeterType) {
+            fetchReadings(selectedFacility.name, selectedMeterType);
+        } else {
+            setReadings([]);
+        }
+    }, [selectedFacility, selectedMeterType, fetchReadings]);
 
     // --- Agregacja do wykresu zbiorczego ---
     const getAggregateChartData = () => {
@@ -119,12 +155,43 @@ const UserHomePage = () => {
         }));
     };
 
-    // --- Agregacja do wykresu pojedynczego licznika ---
+    // --- Agregacja do wykresu pojedynczego licznika (agregacja zużycia) ---
+    const getSingleMeterAggChartData = () => {
+        if (!readings || readings.length === 0 || !selectedSerialAgg) return [];
+        const filteredReadings = readings.filter(r => r.meter_serial_number === selectedSerialAgg);
+        const monthlySum = Array(12).fill(0);
+        const sorted = filteredReadings
+            .map(r => ({ ...r, dateObj: new Date(r.reading_date) }))
+            .sort((a, b) => a.dateObj - b.dateObj);
+        let lastValue = null;
+        let lastMonth = null;
+        for (let i = 0; i < sorted.length; i++) {
+            const { dateObj, value } = sorted[i];
+            const year = dateObj.getFullYear();
+            const month = dateObj.getMonth();
+            if (year > selectedYear) continue;
+            if (lastValue === null && year === selectedYear) {
+                monthlySum[month] += parseFloat(value || 0);
+            } else if (lastValue !== null && year === selectedYear) {
+                const diff = parseFloat(value || 0) - lastValue;
+                if (diff > 0) monthlySum[month] += diff;
+            }
+            lastValue = parseFloat(value || 0);
+            lastMonth = month;
+        }
+        const monthNames = ["Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paź", "Lis", "Gru"];
+        return monthNames.map((name, idx) => ({
+            month: name,
+            consumption: monthlySum[idx].toFixed(2)
+        }));
+    };
+
+    // --- Odczyty pojedynczego licznika ---
     const getSingleMeterChartData = () => {
-        if (!readings || readings.length === 0 || !selectedSerial) return [];
+        if (!readings || readings.length === 0 || !selectedSerialSingle) return [];
         const filtered = readings.filter(r =>
             new Date(r.reading_date).getFullYear() === selectedYear &&
-            r.meter_serial_number === selectedSerial
+            r.meter_serial_number === selectedSerialSingle
         );
         const monthlyConsumption = {};
         filtered.forEach(reading => {
@@ -145,44 +212,66 @@ const UserHomePage = () => {
 
     // Resetuj wybrany licznik jeśli nie istnieje w nowym zbiorze
     useEffect(() => {
-        if (!availableSerials.includes(selectedSerial)) setSelectedSerial('');
-    }, [readings, selectedYear]);
+        if (!availableSerials.includes(selectedSerialAgg)) setSelectedSerialAgg('');
+        if (!availableSerials.includes(selectedSerialSingle)) setSelectedSerialSingle('');
+    }, [selectedFacility, readings, selectedYear]);
 
     // Przed renderowaniem wykresów
-    console.log('facility:', facility);
+    console.log('selectedFacility:', selectedFacility);
     console.log('readings:', readings);
     console.log('selectedYear:', selectedYear);
     console.log('selectedMeterType:', selectedMeterType);
-    console.log('selectedSerial:', selectedSerial);
+    console.log('selectedSerialAgg:', selectedSerialAgg);
+    console.log('selectedSerialSingle:', selectedSerialSingle);
     console.log('getAggregateChartData:', getAggregateChartData());
+    console.log('getSingleMeterAggChartData:', getSingleMeterAggChartData());
     console.log('getSingleMeterChartData:', getSingleMeterChartData());
     console.log('availableYears:', availableYears);
     console.log('availableSerials:', availableSerials);
 
     return (
-        <div className="p-6 bg-ars-whitegrey mb-6">
-            <Box className="p-6 bg-ars-whitegrey mb-6" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+        
+        <div className="p-6 bg-ars-whitegrey min-h-screen">
+            <Box className="bg-ars-whitegrey " display="flex" flexDirection="column" alignItems="center" justifyContent="top">
                         <Paper className="p-8" elevation={3} sx={{ maxWidth: 800, width: '100%', textAlign: 'center' }}>
                             <Typography variant="h3" className="mb-6 text-ars-deepblue" gutterBottom>
                                 Panel Klienta
                             </Typography>
                             <Typography variant="h6" className="mb-4">
-                                Witaj <strong>{userEmail}</strong> w panelu klienta.
-                            </Typography>
-                            <Typography variant="body2" color="textSecondary">
-                                Jeśli potrzebujesz pomocy, skontaktuj się z administratorem systemu.
+                                Witaj <strong>{userEmail}</strong> w panelu Klienta.
                             </Typography>
                         </Paper>
                     </Box>
-
+            <div className="flex items-center justify-center ">
+  <h1 className="text-3xl font-bold mb-6 text-ars-deepblue">
+    Wybierz obiekt do wykreślenia wykresów
+  </h1>
+</div>
+<div className="flex items-center justify-center ">
             {error && <Alert severity="error" className="mb-4">{error}</Alert>}
 
-            {isLoading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}><CircularProgress /></Box>
-            ) : facility && (
+            <FormControl className="mb-6" disabled={isLoading || facilities.length === 0}>
+                <InputLabel id="facility-select-label">Wybierz obiekt</InputLabel>
+                <Select
+                    labelId="facility-select-label"
+                    value={selectedFacility ? selectedFacility.name : ''}
+                    onChange={e => {
+                        const facility = facilities.find(f => f.name === e.target.value);
+                        setSelectedFacility(facility || null);
+                    }}
+                    label="Wybierz obiekt"
+                    sx={{ minWidth: 300 }}
+                >
+                    {facilities.map(facility => (
+                        <MenuItem key={facility.name} value={facility.name}>{facility.name}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+</div>
+            {selectedFacility && (
                 <Paper className="p-6 mb-6" elevation={3}>
                     <Typography variant="h6" className="mb-2 text-ars-deepblue">
-                        Wykresy zużycia liczników dla: <strong>{facility.name}</strong>
+                        Wykresy zużycia liczników dla: <strong>{selectedFacility.name}</strong>
                     </Typography>
 
                     {/* --- Wykres zbiorczy --- */}
@@ -216,10 +305,14 @@ const UserHomePage = () => {
                                 </Select>
                             </FormControl>
                         </Box>
-                        {readings.length === 0 ? (
+                        {isLoading ? (
+                            <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}><CircularProgress /></Box>
+                        ) : readings.length === 0 ? (
                             <Typography className="text-ars-darkgrey italic text-center py-8">
+                                <span style={{ fontWeight: 500, fontSize: '1.1em' }}>Brak danych do wyświetlenia</span>
+                                <br />
                                 Nie znaleziono żadnych odczytów dla wybranego typu licznika w tym obiekcie.<br />
-                                Skontaktuj się z administratorem lub technikiem, jeśli spodziewasz się tutaj danych.
+                                Jeśli spodziewasz się tutaj danych, skontaktuj się z administratorem lub technikiem.
                             </Typography>
                         ) : (
                             <Box sx={{ height: 300, width: '100%' }}>
@@ -236,6 +329,60 @@ const UserHomePage = () => {
                             </Box>
                         )}
                     </Box>
+
+                    {/* --- Wykres zużycia dla wybranego licznika (agregacja jak wykres zbiorczy, ale tylko jeden licznik) --- */}
+                    <Box mb={4}>
+    <Typography variant="subtitle1" className="mb-2 font-semibold">
+        Wykres zużycia wybranego licznika (agregacja miesięczna)
+    </Typography>
+    <Box display="flex" gap={2} mb={2} flexWrap="wrap">
+        <FormControl variant="outlined" sx={{ minWidth: 180 }}>
+            <InputLabel id="agg-serial-select-label">Numer seryjny licznika</InputLabel>
+            <Select
+                labelId="agg-serial-select-label"
+                value={selectedSerialAgg}
+                onChange={e => setSelectedSerialAgg(e.target.value)}
+                label="Numer seryjny licznika"
+            >
+                <MenuItem value=""><em>Wybierz licznik</em></MenuItem>
+                {availableSerials.map(serial => (
+                    <MenuItem key={serial} value={serial}>{serial}</MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+    </Box>
+    {isLoading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}><CircularProgress /></Box>
+    ) : selectedSerialAgg ? (
+        getSingleMeterAggChartData().every(item => item.consumption === "0.00") ? (
+            <Typography className="text-ars-darkgrey italic text-center py-8">
+                <span style={{ fontWeight: 500, fontSize: '1.1em' }}>Brak danych dla wybranego licznika</span>
+                <br />
+                W tym roku nie znaleziono żadnych odczytów dla wybranego licznika.<br />
+                Jeśli licznik jest nowy lub nie był jeszcze odczytywany, dane pojawią się po pierwszym odczycie.
+            </Typography>
+        ) : (
+            <Box sx={{ height: 300, width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={getSingleMeterAggChartData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="consumption" fill="#ffa726" name="Zużycie (agregacja)" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </Box>
+        )
+    ) : (
+        <Typography className="text-ars-darkgrey italic text-center py-8">
+            <span style={{ fontWeight: 500, fontSize: '1.1em' }}>Wybierz licznik</span>
+            <br />
+            Wybierz licznik z listy, aby zobaczyć szczegółowe dane zużycia.
+        </Typography>
+    )}
+</Box>
 
                     {/* --- Wykres pojedynczego licznika --- */}
                     <Box>
@@ -258,8 +405,8 @@ const UserHomePage = () => {
                                 <InputLabel id="serial-select-label">Numer seryjny licznika</InputLabel>
                                 <Select
                                     labelId="serial-select-label"
-                                    value={selectedSerial}
-                                    onChange={e => setSelectedSerial(e.target.value)}
+                                    value={selectedSerialSingle}
+                                    onChange={e => setSelectedSerialSingle(e.target.value)}
                                     label="Numer seryjny licznika"
                                 >
                                     <MenuItem value=""><em>Wybierz licznik</em></MenuItem>
@@ -269,10 +416,14 @@ const UserHomePage = () => {
                                 </Select>
                             </FormControl>
                         </Box>
-                        {selectedSerial ? (
+                        {isLoading ? (
+                            <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}><CircularProgress /></Box>
+                        ) : selectedSerialSingle ? (
                             getSingleMeterChartData().every(item => item.consumption === "0.00") ? (
                                 <Typography className="text-ars-darkgrey italic text-center py-8">
-                                    Brak odczytów dla wybranego licznika w tym roku.<br />
+                                    <span style={{ fontWeight: 500, fontSize: '1.1em' }}>Brak danych dla wybranego licznika</span>
+                                    <br />
+                                    W tym roku nie znaleziono żadnych odczytów dla wybranego licznika.<br />
                                     Jeśli licznik jest nowy lub nie był jeszcze odczytywany, dane pojawią się po pierwszym odczycie.
                                 </Typography>
                             ) : (
@@ -291,7 +442,9 @@ const UserHomePage = () => {
                             )
                         ) : (
                             <Typography className="text-ars-darkgrey italic text-center py-8">
-                                Wybierz licznik, aby zobaczyć szczegółowe dane zużycia.
+                                <span style={{ fontWeight: 500, fontSize: '1.1em' }}>Wybierz licznik</span>
+                                <br />
+                                Wybierz licznik z listy, aby zobaczyć szczegółowe dane odczytu.
                             </Typography>
                         )}
                     </Box>
@@ -301,4 +454,4 @@ const UserHomePage = () => {
     );
 };
 
-export default UserHomePage;
+export default AdminHomePage;

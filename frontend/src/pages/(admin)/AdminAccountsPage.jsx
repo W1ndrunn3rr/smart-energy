@@ -54,6 +54,11 @@ const AdminAccountsPage = () => {
     const [assignLoading, setAssignLoading] = useState(false);
     const [assignError, setAssignError] = useState('');
 
+    /**
+     * Pobiera listę użytkowników z API i aktualizuje stan.
+     * @function fetchUsers
+     * @returns {Promise<void>}
+     */
     const fetchUsers = async () => {
         setIsLoading(true);
         setError('');
@@ -127,6 +132,11 @@ const AdminAccountsPage = () => {
         const { name, value } = e.target;
         setNewUser(prev => ({ ...prev, [name]: value }));
     };
+    /**
+     * Dodaje nowego użytkownika do systemu.
+     * @function handleAddUser
+     * @returns {Promise<void>}
+     */
     const handleAddUser = async () => {
         setIsLoading(true);
         setError('');
@@ -182,6 +192,11 @@ const AdminAccountsPage = () => {
             [name]: type === 'checkbox' ? checked : value
         }));
     };
+    /**
+     * Aktualizuje dane wybranego użytkownika (hasło i/lub poziom dostępu).
+     * @function handleUpdateUser
+     * @returns {Promise<void>}
+     */
     const handleUpdateUser = async () => {
         if (!editedUser || !userToEdit) return;
         setIsLoading(true);
@@ -270,6 +285,11 @@ const AdminAccountsPage = () => {
         setUserToDelete(null);
         setOpenDeleteConfirmDialog(false);
     };
+    /**
+     * Usuwa wybranego użytkownika z systemu.
+     * @function handleDeleteUser
+     * @returns {Promise<void>}
+     */
     const handleDeleteUser = async () => {
         if (!userToDelete) return;
         setIsLoading(true);
@@ -299,6 +319,12 @@ const AdminAccountsPage = () => {
     };
 
     // Funkcja do pobrania facilities dla danego użytkownika
+    /**
+     * Pobiera listę obiektów przypisanych do użytkownika i aktualizuje stan rozwinięcia.
+     * @function handleToggleFacilities
+     * @param {object} user - Obiekt użytkownika.
+     * @returns {Promise<void>}
+     */
     const handleToggleFacilities = async (user) => {
         if (expandedUserEmail === user.email) {
             setExpandedUserEmail(null);
@@ -336,7 +362,35 @@ const AdminAccountsPage = () => {
         fetchAllFacilities();
     }, []);
 
-    // Przypisz użytkownika do facility
+    // Dodaj funkcję pomocniczą:
+    /**
+     * Odświeża listę obiektów przypisanych do użytkownika.
+     * @function refreshFacilitiesForUser
+     * @param {string} userEmail - Email użytkownika.
+     * @returns {Promise<void>}
+     */
+    const refreshFacilitiesForUser = async (userEmail) => {
+        setIsLoadingFacilities(true);
+        try {
+            const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(userEmail)}`);
+            if (!response.ok) throw new Error('Nie udało się pobrać obiektów dla użytkownika.');
+            const data = await response.json();
+            const facilitiesArray = Array.isArray(data) ? data : (data.facilities || []);
+            setFacilitiesForUser(facilitiesArray);
+        } catch (err) {
+            setFacilitiesForUser([]);
+        } finally {
+            setIsLoadingFacilities(false);
+        }
+    };
+
+    /**
+     * Przypisuje użytkownika do wybranego obiektu.
+     * @function handleAssignFacility
+     * @param {string} userEmail - Email użytkownika.
+     * @param {string} facilityName - Nazwa obiektu.
+     * @returns {Promise<void>}
+     */
     const handleAssignFacility = async (userEmail, facilityName) => {
         setAssignLoading(true);
         setAssignError('');
@@ -350,8 +404,8 @@ const AdminAccountsPage = () => {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.detail || 'Nie udało się przypisać obiektu.');
             }
-            // Odśwież listę przypisanych obiektów
-            await handleToggleFacilities({ email: userEmail });
+            // Odśwież tylko facilities, nie zamykaj rozwinięcia
+            await refreshFacilitiesForUser(userEmail);
         } catch (err) {
             setAssignError(err.message);
         } finally {
@@ -359,12 +413,18 @@ const AdminAccountsPage = () => {
         }
     };
 
-    // Usuń przypisanie użytkownika do facility
+    /**
+     * Usuwa przypisanie użytkownika do wybranego obiektu.
+     * @function handleUnassignFacility
+     * @param {string} userEmail - Email użytkownika.
+     * @param {string} facilityName - Nazwa obiektu.
+     * @returns {Promise<void>}
+     */
     const handleUnassignFacility = async (userEmail, facilityName) => {
         setAssignLoading(true);
         setAssignError('');
         try {
-            const response = await fetch(`${API_URL}/facilities/unassignments`, {
+            const response = await fetch(`${API_URL}/unassign/facility`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: userEmail, facility_name: facilityName }),
@@ -373,8 +433,8 @@ const AdminAccountsPage = () => {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.detail || 'Nie udało się usunąć przypisania.');
             }
-            // Odśwież listę przypisanych obiektów
-            await handleToggleFacilities({ email: userEmail });
+            // Odśwież tylko facilities, nie zamykaj rozwinięcia
+            await refreshFacilitiesForUser(userEmail);
         } catch (err) {
             setAssignError(err.message);
         } finally {

@@ -35,6 +35,11 @@ const AdminObjectsPage = () => {
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [facilityToDelete, setFacilityToDelete] = useState(null);
 
+    /**
+     * Pobiera listę obiektów (facilities) z API i aktualizuje stan.
+     * @function fetchFacilities
+     * @returns {Promise<void>}
+     */
     const fetchFacilities = async () => {
         setIsLoading(true);
         setError('');
@@ -92,6 +97,11 @@ const AdminObjectsPage = () => {
 
 
     // Add Facility Handlers
+    /**
+     * Otwiera dialog dodawania nowego obiektu i resetuje stan formularza.
+     * @function handleOpenAddDialog
+     * @returns {void}
+     */
     const handleOpenAddDialog = () => {
         setNewFacility({ name: '', address: '', email: '' });
         setError('');
@@ -103,6 +113,11 @@ const AdminObjectsPage = () => {
         const { name, value } = e.target;
         setNewFacility(prev => ({ ...prev, [name]: value }));
     };
+    /**
+     * Dodaje nowy obiekt do systemu.
+     * @function handleAddFacility
+     * @returns {Promise<void>}
+     */
     const handleAddFacility = async () => {
         setIsLoading(true);
         setError('');
@@ -128,6 +143,12 @@ const AdminObjectsPage = () => {
     };
 
     // Edit Facility Handlers
+    /**
+     * Otwiera dialog edycji wybranego obiektu i ustawia stan formularza.
+     * @function handleOpenEditDialog
+     * @param {object} facility - Obiekt do edycji.
+     * @returns {void}
+     */
     const handleOpenEditDialog = (facility) => {
         setFacilityToEdit(facility);
         setEditedFacility({ name: facility.name, address: facility.address, email: facility.email });
@@ -140,6 +161,11 @@ const AdminObjectsPage = () => {
         const { name, value } = e.target;
         setEditedFacility(prev => ({ ...prev, [name]: value }));
     };
+    /**
+     * Aktualizuje dane wybranego obiektu.
+     * @function handleUpdateFacility
+     * @returns {Promise<void>}
+     */
     const handleUpdateFacility = async () => {
         if (!facilityToEdit || !editedFacility) return;
         setIsLoading(true);
@@ -177,6 +203,12 @@ const AdminObjectsPage = () => {
     };
 
     // Delete Facility Handlers
+    /**
+     * Otwiera dialog potwierdzenia usunięcia obiektu.
+     * @function handleOpenDeleteDialog
+     * @param {object} facility - Obiekt do usunięcia.
+     * @returns {void}
+     */
     const handleOpenDeleteDialog = (facility) => {
         setFacilityToDelete(facility);
         setError('');
@@ -184,6 +216,11 @@ const AdminObjectsPage = () => {
         setOpenDeleteDialog(true);
     };
     const handleCloseDeleteDialog = () => setOpenDeleteDialog(false);
+    /**
+     * Usuwa wybrany obiekt z systemu.
+     * @function handleDeleteFacility
+     * @returns {Promise<void>}
+     */
     const handleDeleteFacility = async () => {
         if (!facilityToDelete) return;
         setIsLoading(true);

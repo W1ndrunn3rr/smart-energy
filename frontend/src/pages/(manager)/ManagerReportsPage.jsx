@@ -4,6 +4,13 @@ import { API_URL } from '../../definitions';
 import { sessionManager } from '../../scripts/session_manager';
 import { saveAs } from 'file-saver'; // Dodaj do package.json: npm install file-saver
 
+/**
+ * Komponent strony raportów dla managera.
+ * Pozwala na generowanie raportów CSV dla różnych typów liczników (energia elektryczna, klimatyzacja, woda, ciepło)
+ * na podstawie wybranego obiektu lub wszystkich obiektów przypisanych do użytkownika.
+ * @component
+ */
+
 const AdminReportsPage = () => {
     const [facilities, setFacilities] = useState([]);
     const [selectedFacility, setSelectedFacility] = useState('');
@@ -11,6 +18,12 @@ const AdminReportsPage = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        /**
+         * Pobiera listę obiektów przypisanych do aktualnie zalogowanego użytkownika.
+         * Wywoływana automatycznie przy montowaniu komponentu.
+         * @function
+         * @async
+         */
         const fetchFacilities = async () => {
             setIsLoading(true);
             setError('');
@@ -34,7 +47,12 @@ const AdminReportsPage = () => {
         fetchFacilities();
     }, []);
 
-    // Funkcja pomocnicza do generowania CSV
+    /**
+     * Generuje i pobiera raport CSV dla liczników energii elektrycznej.
+     * Zawiera dane miesięczne i sumy zużyć dla wybranego lub wszystkich obiektów.
+     * @function
+     * @async
+     */
     const generateElectricityReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -179,7 +197,12 @@ const AdminReportsPage = () => {
         }
     };
 
-    // Funkcja pomocnicza do generowania CSV dla liczników Energii Klimatyzacji
+    /**
+     * Generuje i pobiera raport CSV dla liczników energii klimatyzacji.
+     * Zawiera dane miesięczne i sumy zużyć dla wybranego lub wszystkich obiektów.
+     * @function
+     * @async
+     */
     const generateAirConditioningReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -323,7 +346,12 @@ const AdminReportsPage = () => {
         }
     };
 
-    // Funkcja pomocnicza do generowania CSV dla liczników Wody zimnej i Wody ciepłej
+    /**
+     * Generuje i pobiera raport CSV dla liczników wody zimnej i ciepłej.
+     * Zawiera dane miesięczne i sumy zużyć dla wybranego lub wszystkich obiektów.
+     * @function
+     * @async
+     */
     const generateWaterReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -474,7 +502,12 @@ const AdminReportsPage = () => {
         }
     };
 
-    // Funkcja pomocnicza do generowania CSV dla liczników ciepła
+    /**
+     * Generuje i pobiera raport CSV dla liczników ciepła.
+     * Zawiera dane miesięczne i sumy zużyć dla wybranego lub wszystkich obiektów.
+     * @function
+     * @async
+     */
     const generateHeatMeterReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);

@@ -219,7 +219,7 @@ def delete_facility(facility_name: str) -> Dict[str, str]:
 
 
 @app.delete(
-    "/facilities/unassignments", tags=["Facilities"], status_code=status.HTTP_200_OK
+    "/unassign/facility", tags=["Facilities"], status_code=status.HTTP_200_OK
 )
 def unassign_facility(assignment: APIAssignment) -> Dict[str, str]:
     """Unassign a facility from a user."""

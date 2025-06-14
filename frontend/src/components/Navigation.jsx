@@ -31,7 +31,7 @@ const Navigation = () => {
     } else if (accessLevel === 3) { // Technicians
         navLinks = [
             { path: '/technician/home', label: 'Strona główna' },
-            { path: '/technician/addmetter', label: 'Dodaj Licznik' },
+            { path: '/technician/addmetter', label: 'Dodaj Odczyt' },
         ];
     } else if (accessLevel === 4) {
         navLinks = [

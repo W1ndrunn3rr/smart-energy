@@ -1,5 +1,16 @@
 import { API_URL } from '../definitions';
 
+/**
+ * Funkcja uwierzytelniania użytkownika.
+ * Wysyła dane logowania do API i zwraca wynik autoryzacji oraz poziom dostępu.
+ * @async
+ * @function AuthFunc
+ * @param {Object} formData - Dane logowania użytkownika.
+ * @param {string} formData.email - Adres email użytkownika.
+ * @param {string} formData.password - Hasło użytkownika.
+ * @returns {Promise<Object>} Wynik autoryzacji: { success, email, access_level, message } lub błąd.
+ * @throws {Error} W przypadku błędu komunikacji lub nieprawidłowych danych logowania.
+ */
 async function AuthFunc(formData) {
     try {
         const response = await fetch(`${API_URL}/login`, {
@@ -17,11 +28,10 @@ async function AuthFunc(formData) {
         if (!response.ok) {
             let errorDetail = 'Nieznany błąd serwera.';
             try {
-                // Try to parse error response from backend if it's JSON
+
                 const errorData = await response.json();
                 errorDetail = errorData.detail || errorData.message || `Błąd serwera: ${response.status}`;
             } catch (e) {
-                // If backend error is not JSON (e.g. HTML error page for 500)
                 console.log('Error parsing response:', e);
                 errorDetail = `Błąd serwera: ${response.status}. Odpowiedź nie jest w formacie JSON.`;
             }
@@ -30,7 +40,6 @@ async function AuthFunc(formData) {
 
         const data = await response.json();
 
-        // Backend returns access_level: null for invalid credentials with a 200 OK
         if (data && data.access_level !== null && data.access_level !== undefined) {
             return {
                 success: true,
@@ -39,7 +48,6 @@ async function AuthFunc(formData) {
                 message: data.message || 'Zalogowano pomyślnie'
             };
         } else {
-            // Handle cases like "Invalid credentials" where access_level is null
             return {
                 success: false,
                 message: data.message || 'Nieprawidłowy login lub hasło'
@@ -48,8 +56,6 @@ async function AuthFunc(formData) {
 
     } catch (error) {
         console.error('Auth error:', error);
-        // Re-throw the error so it can be caught by the handleSubmit in Login.jsx
-        // If it's already an Error object with a message, use that.
         throw error instanceof Error ? error : new Error('Wystąpił błąd podczas komunikacji z serwerem.');
     }
 }

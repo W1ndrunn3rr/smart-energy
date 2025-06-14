@@ -11,6 +11,11 @@ const AdminReportsPage = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
+        /**
+         * Pobiera listę obiektów (facilities) przypisanych do użytkownika i aktualizuje stan.
+         * @function fetchFacilities
+         * @returns {Promise<void>}
+         */
         const fetchFacilities = async () => {
             setIsLoading(true);
             setError('');
@@ -35,6 +40,11 @@ const AdminReportsPage = () => {
     }, []);
 
     // Funkcja pomocnicza do generowania CSV
+    /**
+     * Generuje i pobiera raport CSV dla liczników energii elektrycznej.
+     * @function generateElectricityReport
+     * @returns {Promise<void>}
+     */
     const generateElectricityReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -180,6 +190,11 @@ const AdminReportsPage = () => {
     };
 
     // Funkcja pomocnicza do generowania CSV dla liczników Energii Klimatyzacji
+    /**
+     * Generuje i pobiera raport CSV dla liczników energii klimatyzacji.
+     * @function generateAirConditioningReport
+     * @returns {Promise<void>}
+     */
     const generateAirConditioningReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -324,6 +339,11 @@ const AdminReportsPage = () => {
     };
 
     // Funkcja pomocnicza do generowania CSV dla liczników Wody zimnej i Wody ciepłej
+    /**
+     * Generuje i pobiera raport CSV dla liczników wody zimnej i ciepłej.
+     * @function generateWaterReport
+     * @returns {Promise<void>}
+     */
     const generateWaterReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);
@@ -475,6 +495,11 @@ const AdminReportsPage = () => {
     };
 
     // Funkcja pomocnicza do generowania CSV dla liczników ciepła
+    /**
+     * Generuje i pobiera raport CSV dla liczników ciepła.
+     * @function generateHeatMeterReport
+     * @returns {Promise<void>}
+     */
     const generateHeatMeterReport = async () => {
         if (!selectedFacility) return;
         setIsLoading(true);

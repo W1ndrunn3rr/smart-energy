@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { sessionManager } from '../../scripts/session_manager';
 
+/**
+ * Komponent strony informującej o braku uprawnień.
+ * @function Unauthorized
+ * @returns {JSX.Element} Komunikat o braku dostępu i przycisk powrotu.
+ */
 const Unauthorized = () => {
     const navigate = useNavigate();
     const currentLevel = sessionManager.getAccessLevel();

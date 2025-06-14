@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import AuthFunc from '../../scripts/auth';
 import { sessionManager } from '../../scripts/session_manager';
 
+/**
+ * Komponent strony logowania użytkownika.
+ * @function Login
+ * @returns {JSX.Element} Formularz logowania i obsługa autoryzacji.
+ */
 const Login = () => {
     const navigate = useNavigate();
     const [error, setError] = useState('');
@@ -13,6 +18,12 @@ const Login = () => {
         password: ''
     });
 
+    /**
+     * Obsługuje zmianę wartości w polach formularza logowania.
+     * @function handleChange
+     * @param {object} e - Obiekt zdarzenia zmiany.
+     * @returns {void}
+     */
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -21,6 +32,12 @@ const Login = () => {
         }));
     };
 
+    /**
+     * Obsługuje wysłanie formularza logowania, loguje użytkownika i przekierowuje na odpowiednią stronę.
+     * @function handleSubmit
+     * @param {object} e - Obiekt zdarzenia submit.
+     * @returns {Promise<void>}
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
