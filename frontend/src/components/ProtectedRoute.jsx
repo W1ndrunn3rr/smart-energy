@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sessionManager } from '../scripts/session_manager';
 
+/**
+ * @function ProtectedRoute
+ * @param {object} props
+ * @param {React.ReactNode} props.children - Komponenty potomne do wyświetlenia jeśli autoryzacja się powiedzie.
+ * @param {number|null} [props.requiredAccessLevel=null] - Minimalny poziom dostępu wymagany do wejścia na trasę.
+ * @returns {JSX.Element} Komponent chroniący trasę na podstawie sesji i poziomu dostępu.
+ */
 const ProtectedRoute = ({ children, requiredAccessLevel = null }) => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +31,6 @@ const ProtectedRoute = ({ children, requiredAccessLevel = null }) => {
                 return;
             }
 
-            // Sprawdź poziom dostępu
             // Sprawdź poziom dostępu
             if (requiredAccessLevel !== null && !sessionManager.hasMinimumAccessLevel(requiredAccessLevel)) {
                 navigate('/unauthorized');

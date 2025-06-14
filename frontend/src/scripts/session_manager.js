@@ -14,9 +14,7 @@ class SessionManager {
         };
 
         this.session = sessionData;
-        // Zapisz w localStorage
         localStorage.setItem('userSession', JSON.stringify(sessionData));
-        // Ustaw cookie dla kompatybilności
         setSecureCookie('isAuthenticated', 'true', { expires: 1 });
     }
 
@@ -27,8 +25,7 @@ class SessionManager {
 
             if (storedSession && isAuthCookie === 'true') {
                 const parsed = JSON.parse(storedSession);
-                // Sprawdź czy sesja nie wygasła (opcjonalnie)
-                const maxAge = 24 * 60 * 60 * 1000; // 24 godziny
+                const maxAge = 24 * 60 * 60 * 1000;
                 if (Date.now() - parsed.timestamp < maxAge) {
                     this.session = parsed;
                     return;
@@ -38,7 +35,6 @@ class SessionManager {
             console.error('Error loading session from storage:', error);
         }
 
-        // Jeśli nie ma sesji lub wygasła, wyczyść wszystko
         this.clearSession();
     }
 
@@ -69,7 +65,6 @@ class SessionManager {
         return this.session.accessLevel !== null && this.session.accessLevel <= requiredLevel;
     }
 
-    // Dodatkowe metody pomocnicze
     refreshSession() {
         this.loadSessionFromStorage();
     }
@@ -83,7 +78,7 @@ class SessionManager {
 
     isSessionExpired() {
         if (!this.session.timestamp) return true;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 godziny
+        const maxAge = 24 * 60 * 60 * 1000;
         return Date.now() - this.session.timestamp >= maxAge;
     }
 }

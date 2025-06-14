@@ -3,22 +3,27 @@ import {
     Button, TextField, Dialog, DialogActions, DialogContent,
     DialogContentText, DialogTitle, CircularProgress, Alert, IconButton,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box, Typography,
-    Select, MenuItem, FormControl, InputLabel, Autocomplete, Collapse // Dodano Collapse
+    Select, MenuItem, FormControl, InputLabel, Autocomplete, Collapse
 } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Add as AddIcon,
-    KeyboardArrowDown as KeyboardArrowDownIcon, // Ikona do rozwijania
-    KeyboardArrowUp as KeyboardArrowUpIcon      // Ikona do zwijania
+    KeyboardArrowDown as KeyboardArrowDownIcon,
+    KeyboardArrowUp as KeyboardArrowUpIcon,
+    WarningAmber as WarningAmberIcon
 } from '@mui/icons-material';
 import { API_URL } from '../../definitions';
-import { sessionManager } from '../../scripts/session_manager'; // Dodano import sessionManager
+import { sessionManager } from '../../scripts/session_manager';
 
-// Zaktualizowano COMMON_METER_TYPES na pięć kategorii
 const COMMON_METER_TYPES = ['Energia elektryczna', 'Energia klimatyzacja', 'Woda zimna', 'Woda ciepła', 'Licznik ciepła'];
 
-// Funkcja pomocnicza do uzyskania jednostki (skopiowana z TechnicianDataEntryPage)
+/**
+ * Zwraca jednostkę dla danego typu licznika.
+ * @function getUnitForMeterType
+ * @param {string} meterType - Typ licznika.
+ * @returns {string} Jednostka (np. 'kWh', 'm³', 'GJ').
+ */
 const getUnitForMeterType = (meterType) => {
     switch (meterType) {
         case 'Energia elektryczna':
@@ -34,6 +39,10 @@ const getUnitForMeterType = (meterType) => {
     }
 };
 
+/**
+ * @function AdminMetersPage
+ * @returns {JSX.Element} Strona administracyjna do zarządzania licznikami i odczytami.
+ */
 const AdminMetersPage = () => {
     const [facilities, setFacilities] = useState([]);
     const [selectedFacility, setSelectedFacility] = useState(null);
@@ -44,17 +53,15 @@ const AdminMetersPage = () => {
     const [successMessage, setSuccessMessage] = useState('');
 
     const [openAddMeterDialog, setOpenAddMeterDialog] = useState(false);
-    const [newMeter, setNewMeter] = useState({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1 }); // Dla dodawania mnożna może pozostać liczbą, jeśli walidacja jest odpowiednia
+    const [newMeter, setNewMeter] = useState({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1, description: '' });
 
     const [openEditMeterDialog, setOpenEditMeterDialog] = useState(false);
     const [meterToEdit, setMeterToEdit] = useState(null);
-    // Zaktualizowano stan editedMeter o ppe i multiply_factor
-    const [editedMeter, setEditedMeter] = useState({ serial_number: '', meter_type: '', ppe: '', multiply_factor: 1 });
+    const [editedMeter, setEditedMeter] = useState({ serial_number: '', meter_type: '', ppe: '', multiply_factor: 1, description: '' });
 
     const [openDeleteMeterDialog, setOpenDeleteMeterDialog] = useState(false);
     const [meterToDelete, setMeterToDelete] = useState(null);
 
-    // Stany skopiowane/zaadaptowane z TechnicianDataEntryPage dla dodawania odczytów
     const [currentUserEmail, setCurrentUserEmail] = useState('');
     const [readings, setReadings] = useState([]);
     const [isLoadingReadings, setIsLoadingReadings] = useState(false);
@@ -62,19 +69,20 @@ const AdminMetersPage = () => {
     const [openAddReadingDialog, setOpenAddReadingDialog] = useState(false);
     const [currentMeterForDialog, setCurrentMeterForDialog] = useState(null);
     const [newReadingValue, setNewReadingValue] = useState('');
-    const [newReadingIdInput, setNewReadingIdInput] = useState(''); // <-- DODANO: Stan dla ID nowego odczytu
+    const [newReadingIdInput, setNewReadingIdInput] = useState('');
     const [openConfirmSaveDialog, setOpenConfirmSaveDialog] = useState(false);
     const [pendingSaveAction, setPendingSaveAction] = useState(null);
     const [expandedReadings, setExpandedReadings] = useState({});
 
-    // Stany dla edycji odczytów
     const [openEditReadingDialog, setOpenEditReadingDialog] = useState(false);
     const [readingToEdit, setReadingToEdit] = useState(null);
     const [editedReadingValue, setEditedReadingValue] = useState('');
 
-    // Stany dla usuwania odczytów
     const [openDeleteReadingDialog, setOpenDeleteReadingDialog] = useState(false);
     const [readingToDelete, setReadingToDelete] = useState(null);
+
+    const [showExtraConfirm, setShowExtraConfirm] = useState(false);
+    const [pendingReadingData, setPendingReadingData] = useState(null);
 
 
     useEffect(() => {
@@ -83,50 +91,50 @@ const AdminMetersPage = () => {
             setCurrentUserEmail(email);
         } else {
             console.warn("AdminMetersPage: Email użytkownika nie został znaleziony w sesji.");
-            // Można ustawić błąd, jeśli email jest absolutnie krytyczny do funkcjonowania strony
-            // setError("Nie udało się zidentyfikować użytkownika. Funkcjonalność może być ograniczona.");
         }
     }, []);
 
-// Fetch all facilities for the dropdown - ZMIANA ENDPOINTU
-useEffect(() => {
-    const fetchFacilities = async () => {
-        setIsLoadingFacilities(true);
-        try {
-            if (!currentUserEmail) {
+    useEffect(() => {
+        const fetchFacilities = async () => {
+            setIsLoadingFacilities(true);
+            try {
+                if (!currentUserEmail) {
+                    setFacilities([]);
+                    setIsLoadingFacilities(false);
+                    return;
+                }
+                const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(currentUserEmail)}`);
+                if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    setFacilities(data);
+                } else if (data && Array.isArray(data.facilities)) {
+                    setFacilities(data.facilities);
+                } else {
+                    setFacilities([]);
+                }
+            } catch (err) {
+                setError(err.message);
                 setFacilities([]);
+            } finally {
                 setIsLoadingFacilities(false);
-                return;
             }
-            // Zmieniono endpoint na GET/facilities/user/{email}
-            const response = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(currentUserEmail)}`);
-            if (!response.ok) throw new Error('Nie udało się pobrać listy obiektów.');
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                setFacilities(data);
-            } else if (data && Array.isArray(data.facilities)) {
-                setFacilities(data.facilities);
-            } else {
-                setFacilities([]);
-            }
-        } catch (err) {
-            setError(err.message);
-            setFacilities([]);
-        } finally {
-            setIsLoadingFacilities(false);
-        }
-    };
-    fetchFacilities();
-}, [currentUserEmail]);
+        };
+        fetchFacilities();
+    }, [currentUserEmail]);
 
-    // Fetch meters for the selected facility
+    /**
+     * Pobiera liczniki dla wybranego obiektu.
+     * @function fetchMetersForFacility
+     * @param {string} facilityName - Nazwa obiektu.
+     * @returns {Promise<void>}
+     */
     const fetchMetersForFacility = useCallback(async (facilityName) => {
         if (!facilityName) {
             setMeters([]);
             return;
         }
         setIsLoadingMeters(true);
-        // setError(''); // Resetowanie błędu przy każdej próbie pobrania
         try {
             const response = await fetch(`${API_URL}/meters/${encodeURIComponent(facilityName)}`);
             if (!response.ok) {
@@ -150,7 +158,12 @@ useEffect(() => {
         }
     }, []);
 
-    // Fetch readings for the selected facility (skopiowane z TechnicianDataEntryPage)
+    /**
+     * Pobiera odczyty dla wybranego obiektu.
+     * @function fetchReadingsForFacility
+     * @param {string} facilityName - Nazwa obiektu.
+     * @returns {Promise<void>}
+     */
     const fetchReadingsForFacility = useCallback(async (facilityName) => {
         if (!facilityName) {
             setReadings([]);
@@ -176,27 +189,21 @@ useEffect(() => {
 
     useEffect(() => {
         if (selectedFacility) {
-            // setError(''); // Ostrożnie z resetowaniem błędów, mogą pochodzić z innych operacji
-            // setSuccessMessage('');
             fetchMetersForFacility(selectedFacility.name);
-            fetchReadingsForFacility(selectedFacility.name); // Dodano pobieranie odczytów
-            setExpandedReadings({}); // Resetuj rozwinięcia przy zmianie obiektu
+            fetchReadingsForFacility(selectedFacility.name);
+            setExpandedReadings({});
         } else {
             setMeters([]);
-            setReadings([]); // Wyczyść odczyty, jeśli nie wybrano obiektu
-            // setError('');
-            // setSuccessMessage('');
+            setReadings([]);
         }
     }, [selectedFacility, fetchMetersForFacility, fetchReadingsForFacility]);
 
-    // Add Meter Handlers
     const handleOpenAddMeterDialog = () => {
         if (!selectedFacility) {
             setError("Najpierw wybierz obiekt.");
             return;
         }
-        // Zresetuj stan newMeter z domyślnymi wartościami dla PPE i mnożna
-        setNewMeter({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1 });
+        setNewMeter({ serial_number: '', meter_type: COMMON_METER_TYPES[0], ppe: '', multiply_factor: 1, description: '' });
         setError('');
         setSuccessMessage('');
         setOpenAddMeterDialog(true);
@@ -209,8 +216,12 @@ useEffect(() => {
             [name]: name === 'multiply_factor' ? (value === '' ? '' : parseFloat(value)) : value
         }));
     };
+    /**
+     * Dodaje nowy licznik do wybranego obiektu.
+     * @function handleAddMeter
+     * @returns {Promise<void>}
+     */
     const handleAddMeter = async () => {
-        // Numer PPE wymagany tylko dla Energia elektryczna
         if (!selectedFacility || !newMeter.serial_number.trim() || !newMeter.meter_type) {
             setError("Numer seryjny oraz typ licznika są wymagane.");
             return;
@@ -234,8 +245,9 @@ useEffect(() => {
                 facility_name: selectedFacility.name,
                 ppe: newMeter.meter_type === 'Energia elektryczna'
                     ? newMeter.ppe.trim()
-                    : '-', // dla innych liczników zawsze "-"
-                multiply_factor: parseFloat(newMeter.multiply_factor)
+                    : '-',
+                multiply_factor: parseFloat(newMeter.multiply_factor),
+                description: newMeter.description?.trim() || ''
             };
             const response = await fetch(`${API_URL}/create_meter`, {
                 method: 'POST',
@@ -248,7 +260,7 @@ useEffect(() => {
             }
             setSuccessMessage(`Licznik "${newMeter.serial_number}" (PPE: ${payload.ppe}, Mnożna: ${newMeter.multiply_factor}) został pomyślnie dodany do obiektu "${selectedFacility.name}".`);
             handleCloseAddMeterDialog();
-            if (selectedFacility) fetchMetersForFacility(selectedFacility.name); // Odśwież listę liczników
+            if (selectedFacility) fetchMetersForFacility(selectedFacility.name);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -256,15 +268,14 @@ useEffect(() => {
         }
     };
 
-    // Edit Meter Handlers
     const handleOpenEditMeterDialog = (meter) => {
         setMeterToEdit(meter);
         setEditedMeter({
             serial_number: meter.serial_number,
             meter_type: meter.meter_type,
             ppe: meter.ppe || '',
-            // Ustaw multiply_factor jako string
-            multiply_factor: meter.multiply_factor !== undefined ? String(meter.multiply_factor) : '1'
+            multiply_factor: meter.multiply_factor !== undefined ? String(meter.multiply_factor) : '1',
+            description: meter.description || ''
         });
         setError('');
         setSuccessMessage('');
@@ -276,20 +287,23 @@ useEffect(() => {
         const { name, value } = e.target;
         setEditedMeter(prev => ({
             ...prev,
-            [name]: value // Bezpośrednio zapisz wartość jako string
+            [name]: value
         }));
     };
-
+    /**
+     * Aktualizuje dane wybranego licznika.
+     * @function handleUpdateMeter
+     * @returns {Promise<void>}
+     */
     const handleUpdateMeter = async () => {
         if (!meterToEdit || !selectedFacility || !editedMeter.meter_type || !editedMeter.ppe.trim()) {
             setError("Typ licznika oraz numer PPE są wymagane do aktualizacji.");
             return;
         }
 
-        // Walidacja dla multiply_factor (teraz string w editedMeter.multiply_factor)
         const multiplyFactorString = editedMeter.multiply_factor.trim();
         if (multiplyFactorString === '') {
-            setError("Mnożna jest wymagana."); // Można też ustawić, że nie może być pusta
+            setError("Mnożna jest wymagana.");
             return;
         }
         const multiplyFactorValue = parseFloat(multiplyFactorString);
@@ -302,7 +316,6 @@ useEffect(() => {
         setError('');
         setSuccessMessage('');
 
-        // Upewnij się, że meterToEdit i selectedFacility istnieją
         if (!meterToEdit || !selectedFacility) {
             setError("Nie można zaktualizować licznika: brak danych licznika lub obiektu.");
             setIsLoadingMeters(false);
@@ -310,14 +323,14 @@ useEffect(() => {
         }
 
         const payload = {
-            serial_number: meterToEdit.serial_number, // Dodano numer seryjny do identyfikacji
+            serial_number: meterToEdit.serial_number,
             meter_type: editedMeter.meter_type,
-            facility_name: selectedFacility.name, // Dodano nazwę obiektu, jeśli API tego wymaga
+            facility_name: selectedFacility.name,
             ppe: editedMeter.ppe.trim(),
-            multiply_factor: multiplyFactorValue
+            multiply_factor: multiplyFactorValue,
+            description: editedMeter.description?.trim() || ''
         };
         try {
-            // Poprawiona ścieżka URL - bez numeru seryjnego w ścieżce
             const response = await fetch(`${API_URL}/update_meter`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -337,7 +350,6 @@ useEffect(() => {
         }
     };
 
-    // Delete Meter Handlers
     const handleOpenDeleteMeterDialog = (meter) => {
         setMeterToDelete(meter);
         setError('');
@@ -368,7 +380,6 @@ useEffect(() => {
         }
     };
 
-    // Funkcje do dodawania odczytów (skopiowane/zaadaptowane z TechnicianDataEntryPage)
     const handleOpenAddReadingDialog = (meter) => {
         if (!currentUserEmail) {
             setError("Email administratora/managera nie jest dostępny. Nie można dodać odczytu.");
@@ -376,14 +387,19 @@ useEffect(() => {
         }
         setCurrentMeterForDialog(meter);
         setNewReadingValue('');
-        setNewReadingIdInput(''); // <-- DODANO: Resetuj pole ID odczytu
-        setError(''); // Czyść błędy specyficzne dla tego dialogu
+        setNewReadingIdInput('');
+        setError('');
         setSuccessMessage('');
         setOpenAddReadingDialog(true);
     };
 
+    /**
+     * Tworzy nowy odczyt dla wybranego licznika.
+     * @function confirmAndCreateReading
+     * @returns {void}
+     */
     const confirmAndCreateReading = () => {
-        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility || !newReadingIdInput.trim()) { // <-- ZMODYFIKOWANO: Walidacja dla newReadingIdInput
+        if (!currentMeterForDialog || !newReadingValue.trim() || !selectedFacility || !newReadingIdInput.trim()) {
             setError("Numer seryjny odczytu (ID) oraz wartość odczytu są wymagane.");
             return;
         }
@@ -398,7 +414,7 @@ useEffect(() => {
             setError('');
             setSuccessMessage('');
             const readingData = {
-                reading_id: parsedReadingId, // <-- DODANO: Użyj sparsowanego ID odczytu
+                reading_id: parsedReadingId,
                 meter_serial_number: currentMeterForDialog.serial_number,
                 email: currentUserEmail,
                 value: parseFloat(newReadingValue),
@@ -418,7 +434,7 @@ useEffect(() => {
                 fetchReadingsForFacility(selectedFacility.name);
                 setOpenAddReadingDialog(false);
             } catch (err) {
-                setError(err.message); // Błąd wyświetlany na stronie lub w dialogu
+                setError(err.message);
             } finally {
                 setIsSubmittingReading(false);
                 setOpenConfirmSaveDialog(false);
@@ -434,7 +450,6 @@ useEffect(() => {
         }
     };
 
-    // Dodaj funkcje do edycji odczytów
     const handleOpenEditReadingDialog = (reading, meterType) => {
         setReadingToEdit({ ...reading, meter_type: meterType });
         setEditedReadingValue(reading.value.toString());
@@ -442,12 +457,16 @@ useEffect(() => {
         setOpenEditReadingDialog(true);
     };
 
+    /**
+     * Aktualizuje istniejący odczyt licznika.
+     * @function confirmAndUpdateReading
+     * @returns {void}
+     */
     const confirmAndUpdateReading = () => {
         if (!readingToEdit || !editedReadingValue.trim() || !selectedFacility) {
             setError("Wartość odczytu jest wymagana.");
             return;
         }
-        // Upewnij się, że readingToEdit zawiera reading_id
         if (readingToEdit.reading_id === undefined || readingToEdit.reading_id === null) {
             setError("Brak ID odczytu. Nie można zaktualizować.");
             console.error("confirmAndUpdateReading: reading_id is missing in readingToEdit", readingToEdit);
@@ -461,7 +480,7 @@ useEffect(() => {
             const updatePayload = {
                 reading_id: readingToEdit.reading_id,
                 value: parseFloat(editedReadingValue),
-                reading_date: new Date(readingToEdit.reading_date).toISOString().split('T')[0], // Upewnij się, że format daty jest poprawny dla API
+                reading_date: new Date(readingToEdit.reading_date).toISOString().split('T')[0],
                 meter_serial_number: readingToEdit.meter_serial_number,
                 email: readingToEdit.email,
             };
@@ -480,8 +499,6 @@ useEffect(() => {
                     console.error('API Error Data:', errorData);
                     throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
                 }
-                // const responseData = await response.json(); // API zwraca 200 OK z "additionalProp1": "string"
-                // console.log('Update reading successful, response data:', responseData);
                 setSuccessMessage('Odczyt został pomyślnie zaktualizowany.');
                 fetchReadingsForFacility(selectedFacility.name);
                 setOpenEditReadingDialog(false);
@@ -494,15 +511,13 @@ useEffect(() => {
                 setPendingSaveAction(null);
             }
         });
-        setOpenConfirmSaveDialog(true); // Możesz chcieć osobny dialog potwierdzający dla edycji
+        setOpenConfirmSaveDialog(true);
     };
 
-    // Funkcje do usuwania odczytów
     const handleOpenDeleteReadingDialog = (reading) => {
-        // Upewnij się, że obiekt 'reading' zawiera 'reading_id'
         if (reading.reading_id === undefined || reading.reading_id === null) {
             setError("Brak ID odczytu. Nie można usunąć.");
-            console.error("handleOpenDeleteReadingDialog: reading_id is missing in reading object", reading);
+            console.error("handleOpenDeleteReadingDialog: reading_id is missing in reading", reading);
             return;
         }
         setReadingToDelete(reading);
@@ -515,12 +530,16 @@ useEffect(() => {
         setReadingToDelete(null);
     };
 
+    /**
+     * Usuwa wybrany odczyt licznika.
+     * @function confirmAndDeleteReading
+     * @returns {Promise<void>}
+     */
     const confirmAndDeleteReading = async () => {
         if (!readingToDelete || !selectedFacility) {
             setError("Nie można usunąć odczytu. Brakujące dane.");
             return;
         }
-        // Upewnij się, że readingToDelete zawiera reading_id
         if (readingToDelete.reading_id === undefined || readingToDelete.reading_id === null) {
             setError("Brak ID odczytu. Nie można usunąć.");
             console.error("confirmAndDeleteReading: reading_id is missing in readingToDelete", readingToDelete);
@@ -538,7 +557,6 @@ useEffect(() => {
             const response = await fetch(`${API_URL}/delete_reading/${readingToDelete.reading_id}`, {
                 method: 'DELETE',
                 headers: {
-                    // 'Content-Type': 'application/json', // Zwykle niepotrzebne dla DELETE bez body
                 },
             });
 
@@ -546,8 +564,6 @@ useEffect(() => {
                 const errorData = await response.json().catch(() => ({ detail: 'Nie udało się usunąć odczytu lub sparsować błędu.' }));
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
             }
-            // const responseData = await response.json(); // API zwraca 200 OK z "additionalProp1": "string"
-            // console.log('Delete reading successful, response data:', responseData);
             setSuccessMessage(`Odczyt (ID: ${readingToDelete.reading_id}) został pomyślnie usunięty.`);
             fetchReadingsForFacility(selectedFacility.name);
             handleCloseDeleteReadingDialog();
@@ -646,6 +662,7 @@ useEffect(() => {
                                                         <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Numer Seryjny</TableCell>
                                                         <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Numer PPE</TableCell>
                                                         <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold' }}>Mnożna</TableCell>
+                                                        <TableCell sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold', minWidth: '180px' }}>Opis</TableCell>
                                                         <TableCell align="center" sx={{ backgroundColor: 'var(--ars-deepblue)', color: 'white', fontWeight: 'bold', minWidth: '200px' }}>Akcje</TableCell>
                                                     </TableRow>
                                                 </TableHead>
@@ -656,6 +673,9 @@ useEffect(() => {
                                                                 <TableCell>{meter.serial_number}</TableCell>
                                                                 <TableCell>{meter.ppe || '-'}</TableCell>
                                                                 <TableCell>{meter.multiply_factor !== undefined ? meter.multiply_factor : '-'}</TableCell>
+                                                                <TableCell>
+                                                                    {meter.description && meter.description.trim() !== '' ? meter.description : <span style={{ color: '#888' }}>Brak opisu</span>}
+                                                                </TableCell>
                                                                 <TableCell align="center">
                                                                     <IconButton title="Edytuj licznik" size="small" onClick={() => handleOpenEditMeterDialog(meter)} sx={{ color: 'var(--ars-lightblue)' }}><EditIcon /></IconButton>
                                                                     <IconButton title="Usuń licznik" size="small" onClick={() => handleOpenDeleteMeterDialog(meter)} sx={{ color: '#c82333' }}><DeleteIcon /></IconButton>
@@ -668,7 +688,7 @@ useEffect(() => {
                                                                 </TableCell>
                                                             </TableRow>
                                                             <TableRow>
-                                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}> {/* Zwiększono colSpan */}
+                                                                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={4}>
                                                                     <Collapse in={expandedReadings[meter.serial_number]} timeout="auto" unmountOnExit>
                                                                         <Box margin={1} p={2} sx={{ border: '1px solid var(--ars-grey)', borderRadius: '4px' }}>
                                                                             <Typography variant="subtitle1" gutterBottom component="div" fontWeight="bold">
@@ -690,21 +710,50 @@ useEffect(() => {
                                                                                         </TableRow>
                                                                                     </TableHead>
                                                                                     <TableBody>
-                                                                                        {readings
-                                                                                            .filter(r => r.meter_serial_number === meter.serial_number)
-                                                                                            .sort((a, b) => new Date(b.reading_date) - new Date(a.reading_date))
-                                                                                            .map((reading) => (
-                                                                                                <TableRow key={`${reading.meter_serial_number}-${reading.reading_date}-${reading.email}-${reading.value}`}>
-                                                                                                    <TableCell>{reading.value}</TableCell>
-                                                                                                    <TableCell>{reading.unit || getUnitForMeterType(meter.meter_type)}</TableCell>
-                                                                                                    <TableCell>{new Date(reading.reading_date).toLocaleDateString()}</TableCell>
-                                                                                                    <TableCell>{reading.email}</TableCell>
-                                                                                                    <TableCell align="center">
-                                                                                                        <IconButton title="Edytuj odczyt" size="small" onClick={() => handleOpenEditReadingDialog(reading, meter.meter_type)} sx={{ color: 'var(--ars-lightblue)' }} disabled={isSubmittingReading}><EditIcon /></IconButton>
-                                                                                                        <IconButton title="Usuń odczyt" size="small" onClick={() => handleOpenDeleteReadingDialog(reading)} sx={{ color: 'var(--ars-red)' }} disabled={isSubmittingReading}><DeleteIcon /></IconButton>
-                                                                                                    </TableCell>
-                                                                                                </TableRow>
-                                                                                            ))}
+                                                                                        {(() => {
+                                                                                            const meterReadings = readings
+                                                                                                .filter(r => r.meter_serial_number === meter.serial_number)
+                                                                                                .sort((a, b) => new Date(a.reading_date) - new Date(b.reading_date)); // rosnąco po dacie
+
+                                                                                            // Zbierz ID odczytów, które są mniejsze od poprzedniego
+                                                                                            const errorReadingIds = [];
+                                                                                            for (let i = 1; i < meterReadings.length; i++) {
+                                                                                                const prev = parseFloat(meterReadings[i - 1].value);
+                                                                                                const curr = parseFloat(meterReadings[i].value);
+                                                                                                if (!isNaN(prev) && !isNaN(curr) && curr < prev) {
+                                                                                                    errorReadingIds.push(meterReadings[i].reading_id);
+                                                                                                }
+                                                                                            }
+                                                                                            const anyDrop = errorReadingIds.length > 0;
+
+                                                                                            return (
+                                                                                                <>
+                                                                                                    {meterReadings.slice().reverse().map((reading) => (
+                                                                                                        <TableRow
+                                                                                                            key={`${reading.meter_serial_number}-${reading.reading_date}-${reading.email}-${reading.value}`}
+                                                                                                            sx={errorReadingIds.includes(reading.reading_id) ? { backgroundColor: '#ffe066' } : {}}
+                                                                                                        >
+                                                                                                            <TableCell>{reading.value}</TableCell>
+                                                                                                            <TableCell>{reading.unit || getUnitForMeterType(meter.meter_type)}</TableCell>
+                                                                                                            <TableCell>{new Date(reading.reading_date).toLocaleDateString()}</TableCell>
+                                                                                                            <TableCell>{reading.email}</TableCell>
+                                                                                                            <TableCell align="center">
+                                                                                                                <IconButton title="Edytuj odczyt" size="small" onClick={() => handleOpenEditReadingDialog(reading, meter.meter_type)} sx={{ color: 'var(--ars-lightblue)' }} disabled={isSubmittingReading}><EditIcon /></IconButton>
+                                                                                                                <IconButton title="Usuń odczyt" size="small" onClick={() => handleOpenDeleteReadingDialog(reading)} sx={{ color: 'var(--ars-red)' }} disabled={isSubmittingReading}><DeleteIcon /></IconButton>
+                                                                                                            </TableCell>
+                                                                                                        </TableRow>
+                                                                                                    ))}
+                                                                                                    {anyDrop && (
+                                                                                                        <TableRow>
+                                                                                                            <TableCell colSpan={5} sx={{ backgroundColor: '#ffe066', color: '#b26a00', fontWeight: 'bold', display: 'flex', alignItems: 'center', borderBottom: 'none' }}>
+                                                                                                                <WarningAmberIcon sx={{ color: '#b26a00', mr: 1 }} />
+                                                                                                                Uwaga: W historii odczytów wykryto przypadek, gdzie odczyt jest mniejszy niż poprzedni! Sprawdź poprawność danych.
+                                                                                                            </TableCell>
+                                                                                                        </TableRow>
+                                                                                                    )}
+                                                                                                </>
+                                                                                            );
+                                                                                        })()}
                                                                                     </TableBody>
                                                                                 </Table>
                                                                             )}
@@ -803,6 +852,19 @@ useEffect(() => {
                         InputProps={{ inputProps: { min: 0.01, step: "any" } }}
                         helperText="Domyślnie 1. Musi być liczbą dodatnią."
                     />
+                    <TextField
+                        margin="dense"
+                        name="description"
+                        label="Opis (opcjonalnie)"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={newMeter.description}
+                        onChange={handleNewMeterChange}
+                        className="mb-3"
+                        multiline
+                        minRows={2}
+                    />
                 </DialogContent>
                 <DialogActions className="p-4">
                     <Button onClick={handleCloseAddMeterDialog} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
@@ -853,7 +915,7 @@ useEffect(() => {
                             type="text"
                             fullWidth
                             variant="outlined"
-                            value={editedMeter.ppe} // ppe jest już stringiem
+                            value={editedMeter.ppe}
                             onChange={handleEditedMeterChange}
                             className="mb-3"
                         />
@@ -861,13 +923,26 @@ useEffect(() => {
                             margin="dense"
                             name="multiply_factor"
                             label="Mnożna"
-                            type="number" // type="number" dla odpowiedniej klawiatury/kontrolek, ale wartość w stanie jest stringiem
+                            type="number"
                             fullWidth
                             variant="outlined"
-                            value={editedMeter.multiply_factor} // Wartość jest stringiem
+                            value={editedMeter.multiply_factor}
                             onChange={handleEditedMeterChange}
-                            InputProps={{ inputProps: { min: 0.01, step: "any" } }} // min/step to wskazówki dla przeglądarki
+                            InputProps={{ inputProps: { min: 0.01, step: "any" } }}
                             helperText="Musi być liczbą dodatnią (większą od 0)."
+                        />
+                        <TextField
+                            margin="dense"
+                            name="description"
+                            label="Opis (opcjonalnie)"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
+                            value={editedMeter.description}
+                            onChange={handleEditedMeterChange}
+                            className="mb-3"
+                            multiline
+                            minRows={2}
                         />
                     </DialogContent>
                     <DialogActions className="p-4">
@@ -905,10 +980,10 @@ useEffect(() => {
                             <Typography gutterBottom>Licznik: <strong>{currentMeterForDialog.serial_number}</strong> ({currentMeterForDialog.meter_type})</Typography>
                             <Typography gutterBottom>Zapisujący: <strong>{currentUserEmail}</strong></Typography>
                             <Typography gutterBottom>Data odczytu: <strong>{new Date().toLocaleDateString()}</strong></Typography>
-                            <TextField // <-- DODANO: Pole dla Numeru Seryjnego Odczytu (ID)
+                            <TextField
                                 margin="dense"
                                 label="Numer Seryjny Odczytu (ID)"
-                                type="number" // Użyj type="text" jeśli ID może zawierać znaki niecyfrowe, lub "number" dla walidacji numerycznej
+                                type="number"
                                 fullWidth
                                 variant="outlined"
                                 value={newReadingIdInput}
@@ -918,7 +993,7 @@ useEffect(() => {
                                 helperText={error && (error.toLowerCase().includes("numer seryjny odczytu") || error.toLowerCase().includes("id odczytu")) ? error : ""}
                             />
                             <TextField
-                                autoFocus // Przeniesiono autoFocus tutaj, jeśli to pole ma być pierwsze
+                                autoFocus
                                 margin="dense"
                                 label={`Wartość odczytu (${getUnitForMeterType(currentMeterForDialog.meter_type)})`}
                                 type="number"
@@ -938,7 +1013,7 @@ useEffect(() => {
                 </DialogContent>
                 <DialogActions className="p-4">
                     <Button onClick={() => { setOpenAddReadingDialog(false); setError(''); }} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
-                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmittingReading || !newReadingValue.trim() || !newReadingIdInput.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}> {/* <-- ZMODYFIKOWANO: Warunek disabled */}
+                    <Button onClick={confirmAndCreateReading} variant="contained" disabled={isSubmittingReading || !newReadingValue.trim() || !newReadingIdInput.trim()} sx={{ backgroundColor: 'var(--ars-lightblue)', '&:hover': { backgroundColor: 'var(--ars-deepblue)' } }}>
                         {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Zapisz'}
                     </Button>
                 </DialogActions>
@@ -1012,7 +1087,16 @@ useEffect(() => {
                 </DialogContent>
                 <DialogActions className="p-4">
                     <Button onClick={handleCloseDeleteReadingDialog} sx={{ color: 'var(--ars-darkgrey)' }}>Anuluj</Button>
-                    <Button onClick={confirmAndDeleteReading} variant="contained" color="error" disabled={isSubmittingReading} sx={{ backgroundColor: 'var(--ars-red)', '&:hover': { backgroundColor: '#dc2626' } }}>
+                    <Button
+                        onClick={confirmAndDeleteReading}
+                        variant="contained"
+                        disabled={isSubmittingReading}
+                        sx={{
+                            backgroundColor: 'var(--ars-red)',
+                            color: 'red',
+                            '&:hover': { backgroundColor: '#dc2626' }
+                        }}
+                    >
                         {isSubmittingReading ? <CircularProgress size={24} color="inherit" /> : 'Usuń'}
                     </Button>
                 </DialogActions>

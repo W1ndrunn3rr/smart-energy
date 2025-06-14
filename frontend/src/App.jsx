@@ -17,16 +17,17 @@ import UserHomePage from './pages/(user)/UserHomePage';
 import UserMetersPage from './pages/(user)/UserMetersPage';
 import Unauthorized from './pages/(common)/Unauthorized';
 
+/**
+ * @function App
+ * @returns {JSX.Element} Główny komponent aplikacji, obsługuje routing i layout.
+ */
 function App() {
-  // Przywróć sesję przy ładowaniu aplikacji
   useSessionRestore();
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
-
-        {/* Nowa trasa dla strony głównej admina */}
         <Route path="/admin/home" element={
           <ProtectedRoute requiredAccessLevel={1}>
             <Layout>
@@ -41,7 +42,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-        {/* Trasa dla AdminMetersPage */}
         <Route path="/admin/meters" element={
           <ProtectedRoute requiredAccessLevel={1}>
             <Layout>
@@ -49,7 +49,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-        {/* Trasa dla AdminObjectsPage */}
         <Route path="/admin/objects" element={
           <ProtectedRoute requiredAccessLevel={1}>
             <Layout>
@@ -57,7 +56,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-        {/* Nowa trasa dla strony raportów admina */}
         <Route path="/admin/reports" element={
           <ProtectedRoute requiredAccessLevel={1}>
             <Layout>
@@ -65,7 +63,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-
         <Route path="/manager/home" element={
           <ProtectedRoute requiredAccessLevel={2}>
             <Layout>
@@ -87,7 +84,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-
         <Route path="/technician/home" element={
           <ProtectedRoute requiredAccessLevel={3}>
             <Layout>
@@ -102,7 +98,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-
         <Route path="/user/home" element={
           <ProtectedRoute requiredAccessLevel={4}>
             <Layout>
@@ -110,7 +105,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-
         <Route path="/user/metters" element={
           <ProtectedRoute requiredAccessLevel={4}>
             <Layout>
@@ -118,7 +112,6 @@ function App() {
             </Layout>
           </ProtectedRoute>
         } />
-
       </Routes>
     </Router>
   );

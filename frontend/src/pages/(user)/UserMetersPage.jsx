@@ -2,9 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { sessionManager } from '../../scripts/session_manager';
 import { API_URL } from '../../definitions';
 import { CircularProgress, Alert, Paper, Typography, Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Collapse } from '@mui/material';
-import { KeyboardArrowDown as KeyboardArrowDownIcon, KeyboardArrowUp as KeyboardArrowUpIcon } from '@mui/icons-material';
+import { KeyboardArrowDown as KeyboardArrowDownIcon, KeyboardArrowUp as KeyboardArrowUpIcon, WarningAmber as WarningAmberIcon } from '@mui/icons-material';
 
-// Funkcja getUnitForMeterType może być współdzielona lub zduplikowana
+/**
+ * Zwraca jednostkę dla danego typu licznika.
+ * @function getUnitForMeterType
+ * @param {string} meterType - Typ licznika.
+ * @returns {string} Jednostka (np. 'kWh', 'm³', 'GJ').
+ */
 const getUnitForMeterType = (meterType) => {
     switch (meterType) {
         case 'Energia elektryczna': case 'Energia klimatyzacja': return 'kWh';
@@ -14,6 +19,10 @@ const getUnitForMeterType = (meterType) => {
     }
 };
 
+/**
+ * @function UserMetersPage
+ * @returns {JSX.Element} Strona użytkownika do podglądu liczników i odczytów.
+ */
 const UserMetersPage = () => {
     const [userEmail, setUserEmail] = useState('');
     const [userFacility, setUserFacility] = useState(null);
@@ -25,32 +34,29 @@ const UserMetersPage = () => {
 
     const fetchUserFacilityAndData = useCallback(async (email) => {
         if (!email) {
-            setIsLoading(false); // Zatrzymaj ładowanie, jeśli nie ma emaila
+            setIsLoading(false);
             return;
         }
         setIsLoading(true);
         setError('');
-        // Zresetuj stany przed nowym pobraniem, aby uniknąć wyświetlania starych danych przy błędzie
         setUserFacility(null);
         setMeters([]);
         setReadings([]);
 
         try {
-            // 1. Pobierz obiekt użytkownika
             const facilityResponse = await fetch(`${API_URL}/facilities/user/${encodeURIComponent(email)}`);
             if (!facilityResponse.ok) {
-                const errorData = await facilityResponse.json().catch(() => ({})); // Spróbuj sparsować błąd JSON
+                const errorData = await facilityResponse.json().catch(() => ({}));
                 throw new Error(errorData.detail || 'Nie udało się pobrać danych o Twojej firmie.');
             }
-            const responseData = await facilityResponse.json(); // Poprawne parsowanie odpowiedzi
+            const responseData = await facilityResponse.json();
 
             if (!responseData || !responseData.facilities || responseData.facilities.length === 0) {
                 throw new Error('Nie znaleziono firmy powiązanej z Twoim kontem.');
             }
-            const facility = responseData.facilities[0]; // Dostęp do pierwszego obiektu w tablicy
+            const facility = responseData.facilities[0];
             setUserFacility(facility);
 
-            // 2. Pobierz liczniki dla obiektu
             const metersResponse = await fetch(`${API_URL}/meters/${encodeURIComponent(facility.name)}`);
             if (!metersResponse.ok) {
                 const errorData = await metersResponse.json().catch(() => ({}));
@@ -59,7 +65,6 @@ const UserMetersPage = () => {
             const metersData = await metersResponse.json();
             setMeters(Array.isArray(metersData) ? metersData : (metersData.meters || []));
 
-            // 3. Pobierz odczyty dla obiektu
             const readingsResponse = await fetch(`${API_URL}/readings/${encodeURIComponent(facility.name)}`, { cache: 'no-store' });
             if (!readingsResponse.ok) {
                 const errorData = await readingsResponse.json().catch(() => ({}));
@@ -70,14 +75,13 @@ const UserMetersPage = () => {
 
         } catch (err) {
             setError(err.message);
-            // Upewnij się, że stany są resetowane w przypadku jakiegokolwiek błędu w bloku try
             setUserFacility(null);
             setMeters([]);
             setReadings([]);
         } finally {
             setIsLoading(false);
         }
-    }, []); // Tablica zależności jest pusta, co jest poprawne dla setterów stanu i stałych jak API_URL
+    }, []);
 
     useEffect(() => {
         const email = sessionManager.getUserEmail();
@@ -93,7 +97,7 @@ const UserMetersPage = () => {
         if (userEmail) {
             fetchUserFacilityAndData(userEmail);
         }
-    }, [userEmail, fetchUserFacilityAndData]); // Dodano fetchUserFacilityAndData do zależności
+    }, [userEmail, fetchUserFacilityAndData]);
 
     const toggleMeterExpansion = (meterSerialNumber) => {
         setExpandedMeters(prev => ({ ...prev, [meterSerialNumber]: !prev[meterSerialNumber] }));
@@ -115,12 +119,22 @@ const UserMetersPage = () => {
                 const meterReadings = readings.filter(r => r.meter_serial_number === meter.serial_number)
                     .sort((a, b) => new Date(b.reading_date) - new Date(a.reading_date));
                 const isExpanded = !!expandedMeters[meter.serial_number];
+
+                const latest = meterReadings[0];
+                const previous = meterReadings[1];
+                const isWarning = latest && previous && parseFloat(latest.value) < parseFloat(previous.value);
+
                 return (
                     <Paper key={meter.serial_number} elevation={2} className="p-4 mb-4">
                         <Box display="flex" justifyContent="space-between" alignItems="center" onClick={() => toggleMeterExpansion(meter.serial_number)} sx={{ cursor: 'pointer' }}>
-                            <Typography variant="h6" component="h3" className="text-md font-semibold text-ars-darkgrey">
-                                Licznik: {meter.serial_number} <span className="font-normal text-sm">({meter.meter_type})</span>
-                            </Typography>
+                            <Box>
+                                <Typography variant="h6" component="h3" className="text-md font-semibold text-ars-darkgrey">
+                                    Licznik: {meter.serial_number} <span className="font-normal text-sm">({meter.meter_type})</span>
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: '#666' }}>
+                                    Opis: {meter.description && meter.description.trim() !== '' ? meter.description : <span style={{ color: '#aaa' }}>Brak opisu</span>}
+                                </Typography>
+                            </Box>
                             <IconButton size="small">
                                 {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                             </IconButton>
@@ -138,14 +152,28 @@ const UserMetersPage = () => {
                                             </TableRow>
                                         </TableHead>
                                         <TableBody>
-                                            {meterReadings.map(reading => (
-                                                <TableRow key={`${reading.meter_serial_number}-${reading.reading_date}-${reading.email}-${reading.value}`}>
-                                                    <TableCell>{reading.value}</TableCell>
-                                                    <TableCell>{getUnitForMeterType(meter.meter_type)}</TableCell>
-                                                    <TableCell>{new Date(reading.reading_date).toLocaleDateString()}</TableCell>
-                                                    <TableCell>{reading.email}</TableCell>
+                                            {meterReadings.map(reading => {
+                                                const highlight = latest && previous && reading.reading_id === latest.reading_id && parseFloat(latest.value) < parseFloat(previous.value);
+                                                return (
+                                                    <TableRow
+                                                        key={`${reading.meter_serial_number}-${reading.reading_date}-${reading.email}-${reading.value}`}
+                                                        sx={highlight ? { backgroundColor: '#ffe066' } : {}}
+                                                    >
+                                                        <TableCell>{reading.value}</TableCell>
+                                                        <TableCell>{getUnitForMeterType(meter.meter_type)}</TableCell>
+                                                        <TableCell>{new Date(reading.reading_date).toLocaleDateString()}</TableCell>
+                                                        <TableCell>{reading.email}</TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                            {isWarning && (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} sx={{ backgroundColor: '#ffe066', color: '#b26a00', fontWeight: 'bold', display: 'flex', alignItems: 'center', borderBottom: 'none' }}>
+                                                        <WarningAmberIcon sx={{ color: '#b26a00', mr: 1 }} />
+                                                        Uwaga: Najnowszy odczyt jest mniejszy niż poprzedni! Sprawdź poprawność danych.
+                                                    </TableCell>
                                                 </TableRow>
-                                            ))}
+                                            )}
                                         </TableBody>
                                     </Table>
                                 </TableContainer>
